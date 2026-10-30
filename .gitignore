@@ -8,3 +8,4 @@ include/secrets.h
 
 # Release packages (tools/package_release.sh).
 dist/
+__pycache__/

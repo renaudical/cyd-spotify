@@ -15,6 +15,10 @@ constexpr char kWifiSsid[] = "wifi_ssid";
 constexpr char kWifiPassword[] = "wifi_pass";
 constexpr char kWiimHost[] = "wiim_host";
 constexpr char kTimezone[] = "tz_manual";
+constexpr char kSource[] = "source";
+constexpr char kSpotifyClientId[] = "sp_client";
+constexpr char kSpotifyRefresh[] = "sp_refresh";
+constexpr char kSpotifyDevice[] = "sp_device";
 
 char device_id[5];
 char host_name[24];
@@ -65,6 +69,21 @@ void setWifi(const String& ssid, const String& password) {
   put(kWifiSsid, ssid);
   put(kWifiPassword, password);
 }
+
+Source source() {
+  String s = get(kSource);
+  if (s == "spotify") return Source::kSpotify;
+  if (s == "wiim") return Source::kWiim;
+  return wiimHost().isEmpty() ? Source::kSpotify : Source::kWiim;
+}
+void setSource(Source source) { put(kSource, source == Source::kSpotify ? "spotify" : "wiim"); }
+
+String spotifyClientId() { return get(kSpotifyClientId); }
+void setSpotifyClientId(const String& id) { put(kSpotifyClientId, id); }
+String spotifyRefreshToken() { return get(kSpotifyRefresh); }
+void setSpotifyRefreshToken(const String& token) { put(kSpotifyRefresh, token); }
+String spotifyDevice() { return get(kSpotifyDevice); }
+void setSpotifyDevice(const String& name) { put(kSpotifyDevice, name); }
 
 String wiimHost() { return get(kWiimHost); }
 void setWiimHost(const String& host) { put(kWiimHost, host); }

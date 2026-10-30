@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <esp_heap_caps.h>
 #include <lvgl.h>
 
 #include "backlight.h"
@@ -48,14 +49,11 @@ void setup() {
   player::begin();
   updater::begin();
   ui::begin();
-  Serial.printf("heap: free %u, largest block %u\n", (unsigned)ESP.getFreeHeap(), (unsigned)ESP.getMaxAllocHeap());
+  Serial.printf("heap: free %u, largest block %u\n", (unsigned)heap_caps_get_free_size(MALLOC_CAP_8BIT), (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
 #endif
 }
 
 void loop() {
-#ifndef DEV_SCREENS
-  player::update();
-#endif
   lv_timer_handler();
   delay(5);
 }

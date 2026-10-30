@@ -14,6 +14,22 @@ String wifiSsid();
 String wifiPassword();
 void setWifi(const String& ssid, const String& password);
 
+// Where "now playing" comes from. Defaults to the WiiM if one was configured (dev boards seeded from
+// secrets.h), otherwise Spotify.
+enum class Source { kWiim, kSpotify };
+Source source();
+void setSource(Source source);
+
+// Spotify sign-in: the Client ID of the user's own Spotify developer app, and the refresh token from
+// signing in (empty when signed out).
+String spotifyClientId();
+void setSpotifyClientId(const String& id);
+String spotifyRefreshToken();
+void setSpotifyRefreshToken(const String& token);
+// Only show what plays on the Spotify Connect device with this name; empty means any device.
+String spotifyDevice();
+void setSpotifyDevice(const String& name);
+
 // The WiiM's address; empty means find it on the network.
 String wiimHost();
 void setWiimHost(const String& host);

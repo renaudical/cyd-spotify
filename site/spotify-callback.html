@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>Connecting Spotify</title>
+  <style>
+    :root { --bg: #fbfaf8; --text: #1d1b19; --muted: #6b655f; --accent: #c8102e; }
+    @media (prefers-color-scheme: dark) { :root { --bg: #161412; --text: #f1ede8; --muted: #a39b93; --accent: #e6324f; } }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    main { max-width: 520px; margin: 0 auto; padding: 48px 16px; }
+    h1 { font-size: 1.5rem; margin: 0 0 8px; }
+    p { color: var(--muted); }
+    a { color: var(--accent); font-weight: 600; }
+  </style>
+</head>
+<body>
+<main>
+  <h1 id="title">Connecting Spotify&hellip;</h1>
+  <p id="detail">Taking you back to your display.</p>
+  <p id="link" hidden><a id="continue">Continue to your display</a></p>
+</main>
+<script>
+  // Spotify only redirects to HTTPS pages, so it sends the browser here; the display put its local
+  // address in the OAuth state ("<nonce>~<address>"). Only private addresses are followed, so this page
+  // can't be used to send people anywhere else.
+  const params = new URLSearchParams(location.search);
+  const state = params.get("state") || "";
+  const host = state.slice(state.indexOf("~") + 1);
+  const isPrivate =
+    /^10(\.\d{1,3}){3}$/.test(host) ||
+    /^192\.168(\.\d{1,3}){2}$/.test(host) ||
+    /^172\.(1[6-9]|2\d|3[01])(\.\d{1,3}){2}$/.test(host) ||
+    /^[a-z0-9-]+\.local$/i.test(host);
+
+  if (state.includes("~") && isPrivate) {
+    const target = `http://${host}/spotify/callback${location.search}`;
+    document.getElementById("continue").href = target;
+    document.getElementById("link").hidden = false;
+    location.replace(target);
+  } else {
+    document.getElementById("title").textContent = "Something went wrong";
+    document.getElementById("detail").textContent =
+      "This page finishes connecting Spotify to a Now Playing Brickman display. Start again from the display's settings page.";
+  }
+</script>
+</body>
+</html>

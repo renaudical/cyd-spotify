@@ -1,6 +1,7 @@
 #include <string.h>
 
 #include "assets/assets.h"
+#include "net/net.h"
 #include "player/player.h"
 #include "themes/theme.h"
 #include "ui.h"
@@ -135,15 +136,21 @@ void showTrack(const player::State& s) {
     case player::Link::kWifiLost:
       showMessage("Wi-Fi connection lost", "Reconnecting\xe2\x80\xa6");
       return;
-    case player::Link::kWiimConnecting:
-      showMessage("Connecting to WiiM\xe2\x80\xa6", "");
+    case player::Link::kConnecting:
+      showMessage((String("Connecting to ") + s.source + "\xe2\x80\xa6").c_str(), "");
       return;
-    case player::Link::kWiimUnreachable:
-      showMessage("Can\xe2\x80\x99t reach the WiiM", "Retrying\xe2\x80\xa6");
+    case player::Link::kUnreachable:
+      showMessage((String("Can\xe2\x80\x99t reach ") + s.source).c_str(), "Retrying\xe2\x80\xa6");
       return;
-    case player::Link::kWiimNotFound:
+    case player::Link::kNotFound:
       showMessage("No WiiM found on this network", "Still looking\xe2\x80\xa6");
       return;
+    case player::Link::kNeedsSetup: {
+      String address = net::address();
+      showMessage("Connect Spotify",
+                  address.length() ? ("Open " + address + " in a browser").c_str() : "Open the settings page");
+      return;
+    }
   }
 
   if (s.status == player::Status::kStopped) {
@@ -157,7 +164,7 @@ void showTrack(const player::State& s) {
   }
 
   if (s.art) {
-    // The player reuses its art buffers, so the same descriptor can come back with new pixels.
+    // The player reuses its art buffer, so the same descriptor can come back with new pixels.
     lv_image_cache_drop(s.art);
     lv_image_set_src(ui_.art, s.art);
     lv_obj_invalidate(ui_.art);
@@ -170,6 +177,7 @@ void showTrack(const player::State& s) {
 }
 
 void refresh(lv_timer_t*) {
+  player::update();
   const player::State& s = player::state();
   if (s.version != ui_.shown_version) {
     showTrack(s);

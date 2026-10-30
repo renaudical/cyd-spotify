@@ -2,7 +2,7 @@
 
 #include <pgmspace.h>
 
-// Served at / by web_server.cpp; fetches /api/status and posts to /api/wifi and /api/settings.
+// Served at / by web_server.cpp; fetches /api/status and posts to /api/wifi, /api/settings and /api/spotify/*.
 // On the setup network only the Wi-Fi section shows.
 const char kSettingsPage[] PROGMEM = R"HTML(<!doctype html>
 <html lang="en">
@@ -31,6 +31,13 @@ button:disabled { opacity:.5; cursor:default; }
 .msg { margin:12px 0 0; font-size:.9rem; min-height:1.2em; }
 .msg.ok { color:var(--ok); }
 .msg.err { color:var(--accent); }
+.choices { display:flex; gap:8px; margin-top:8px; }
+.choices label { flex:1; margin:0; padding:10px 12px; border:1px solid var(--border); border-radius:8px; cursor:pointer; }
+.choices input { width:auto; margin-right:6px; }
+ol { padding-left:1.2em; margin:8px 0 0; font-size:.9rem; }
+li { margin:4px 0; }
+code { display:inline-block; padding:2px 6px; border-radius:4px; background:var(--bg); border:1px solid var(--border); font-size:.85rem; word-break:break-all; }
+.status { font-weight:600; }
 [hidden] { display:none !important; }
 </style>
 </head>
@@ -55,15 +62,50 @@ button:disabled { opacity:.5; cursor:default; }
 
   <div id="normal" hidden>
     <section>
-      <h2>WiiM</h2>
-      <p class="hint">The streamer whose music the display shows.</p>
-      <form id="wiim-form">
+      <h2>Music</h2>
+      <p class="hint">Where the display gets &ldquo;now playing&rdquo; from.</p>
+      <form id="source-form">
+        <div class="choices">
+          <label><input type="radio" name="source" value="spotify">Spotify</label>
+          <label><input type="radio" name="source" value="wiim">WiiM</label>
+        </div>
+        <button id="source-save" hidden>Switch</button>
+        <p class="msg" id="source-msg"></p>
+      </form>
+
+      <form id="wiim-form" hidden>
+        <p class="hint">Shows whatever your WiiM streamer plays, from any app.</p>
         <label for="wiim">Device</label>
         <select id="wiim"><option value="">Automatic (first one found)</option></select>
         <input id="wiim-other" placeholder="IP address, e.g. 192.168.1.50" hidden>
         <button>Save</button>
         <p class="msg" id="wiim-msg"></p>
       </form>
+
+      <div id="spotify" hidden>
+        <p class="hint">Shows what your Spotify account plays. Needs Spotify Premium.</p>
+        <p class="status" id="sp-status"></p>
+        <form id="sp-login">
+          <p class="hint" style="margin:0">Once only: make your own Spotify app for the display.</p>
+          <ol>
+            <li>Open <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener">developer.spotify.com/dashboard</a>, log in and click <b>Create app</b>.</li>
+            <li>Name it anything (e.g. &ldquo;Brickman&rdquo;). As <b>Redirect URI</b>, add <code id="sp-redirect"></code></li>
+            <li>Tick <b>Web API</b>, agree to the terms and save.</li>
+            <li>Open the app&rsquo;s settings and copy its <b>Client ID</b> here.</li>
+          </ol>
+          <label for="sp-client">Client ID</label>
+          <input id="sp-client" autocomplete="off" spellcheck="false">
+          <button>Connect Spotify</button>
+          <p class="msg" id="sp-login-msg"></p>
+        </form>
+        <form id="sp-device-form" hidden>
+          <label for="sp-device">Show music playing on</label>
+          <select id="sp-device"><option value="">Any device</option></select>
+          <button>Save</button>
+          <button type="button" class="secondary" id="sp-signout">Disconnect Spotify</button>
+          <p class="msg" id="sp-device-msg"></p>
+        </form>
+      </div>
     </section>
 
     <section>
@@ -135,6 +177,21 @@ async function loadWiims(current) {
   sel.value = current;
 }
 
+async function loadSpotifyDevices(current) {
+  const sel = $("sp-device"), msg = $("sp-device-msg");
+  msg.textContent = "Getting your Spotify devices\u2026";
+  try {
+    const r = await fetch("/api/spotify/devices");
+    if (!r.ok) throw new Error(await r.text());
+    for (const name of await r.json()) sel.append(option(name, name));
+    msg.textContent = "";
+  } catch (e) {
+    msg.className = "msg err"; msg.textContent = e.message;
+  }
+  if (current && ![...sel.options].some(o => o.value === current)) sel.append(option(current, current + " (not on now)"));
+  sel.value = current;
+}
+
 async function loadTimezones(current, detected) {
   const sel = $("tz");
   if (detected) sel.options[0].textContent = `Automatic (${detected.replace(/_/g, " ")})`;
@@ -159,7 +216,21 @@ async function main() {
     $("wifi-hint").textContent = `Connected to “${s.ssid}” as ${s.hostname} (${s.ip}).`;
     $("device").textContent = `Version ${s.version} · ${s.hostname} · ${s.ip}`;
     $("normal").hidden = false;
-    loadWiims(s.wiim_host);
+    for (const r of document.querySelectorAll("input[name=source]")) {
+      r.checked = r.value === s.source;
+      r.onchange = () => { $("source-save").hidden = r.value === s.source; };
+    }
+    $("wiim-form").hidden = s.source !== "wiim";
+    $("spotify").hidden = s.source !== "spotify";
+    if (s.source === "wiim") loadWiims(s.wiim_host);
+    if (s.source === "spotify") {
+      $("sp-redirect").textContent = s.spotify_redirect_uri;
+      $("sp-client").value = s.spotify_client_id;
+      $("sp-status").textContent = s.spotify_signed_in ? "Connected to Spotify" : "Not connected yet";
+      $("sp-login").hidden = s.spotify_signed_in;
+      $("sp-device-form").hidden = !s.spotify_signed_in;
+      if (s.spotify_signed_in) loadSpotifyDevices(s.spotify_device);
+    }
     loadTimezones(s.timezone, s.timezone_detected);
   }
   loadNetworks(s.ssid);
@@ -171,6 +242,28 @@ async function main() {
       `Saved. The display is restarting to join “${ssid}”. ` +
       (s.setup ? "Reconnect this phone to your usual Wi-Fi." : "This page will stop responding if the network changes."));
   };
+  $("source-form").onsubmit = e => {
+    e.preventDefault();
+    const source = document.querySelector("input[name=source]:checked").value;
+    post("/api/settings", { source }, "source-msg", "Saved. The display is restarting; reload this page in a moment.");
+  };
+  $("sp-login").onsubmit = async e => {
+    e.preventDefault();
+    const msg = $("sp-login-msg");
+    msg.className = "msg"; msg.textContent = "Opening Spotify\u2026";
+    try {
+      const r = await fetch("/api/spotify/login", { method: "POST", body: new URLSearchParams({ client_id: $("sp-client").value.trim() }) });
+      if (!r.ok) throw new Error(await r.text());
+      location.href = (await r.json()).url;
+    } catch (e) {
+      msg.className = "msg err"; msg.textContent = e.message;
+    }
+  };
+  $("sp-device-form").onsubmit = e => {
+    e.preventDefault();
+    post("/api/settings", { spotify_device: $("sp-device").value }, "sp-device-msg", "Saved. The display is restarting.");
+  };
+  $("sp-signout").onclick = () => post("/api/spotify/signout", {}, "sp-device-msg", "Disconnected. The display is restarting.");
   $("wiim-form").onsubmit = e => {
     e.preventDefault();
     const host = $("wiim").value === OTHER ? $("wiim-other").value.trim() : $("wiim").value;

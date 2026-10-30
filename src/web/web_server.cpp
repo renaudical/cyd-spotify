@@ -7,6 +7,7 @@
 
 #include "net/net.h"
 #include "net/timezones.h"
+#include "player/spotify.h"
 #include "player/wiim_discovery.h"
 #include "settings/settings.h"
 #include "settings_page.h"
@@ -38,7 +39,12 @@ void handleStatus() {
   doc["ssid"] = settings::wifiSsid();
   doc["ip"] = net::address();
   doc["hostname"] = String(settings::hostname()) + ".local";
+  doc["source"] = settings::source() == settings::Source::kSpotify ? "spotify" : "wiim";
   doc["wiim_host"] = settings::wiimHost();
+  doc["spotify_client_id"] = settings::spotifyClientId();
+  doc["spotify_signed_in"] = spotify::signedIn();
+  doc["spotify_device"] = settings::spotifyDevice();
+  doc["spotify_redirect_uri"] = spotify::redirectUri();
   doc["timezone"] = settings::timezone();
   doc["timezone_detected"] = tz::detectedName();
   sendJson(doc);
@@ -105,6 +111,10 @@ void handleSaveWifi() {
 }
 
 void handleSaveSettings() {
+  if (server.hasArg("source")) {
+    settings::setSource(server.arg("source") == "spotify" ? settings::Source::kSpotify : settings::Source::kWiim);
+  }
+  if (server.hasArg("spotify_device")) settings::setSpotifyDevice(server.arg("spotify_device"));
   if (server.hasArg("wiim_host")) settings::setWiimHost(server.arg("wiim_host"));
   if (server.hasArg("timezone")) {
     String zone = server.arg("timezone");
@@ -114,6 +124,58 @@ void handleSaveSettings() {
     }
     settings::setTimezone(zone);
   }
+  server.send(200, "text/plain", "ok");
+  restartSoon();
+}
+
+// Saves the Client ID and answers with the Spotify sign-in URL for the browser to open.
+void handleSpotifyLogin() {
+  String client_id = server.arg("client_id");
+  client_id.trim();
+  if (client_id.length() != 32) {
+    server.send(400, "text/plain", "A Client ID is 32 letters and digits; copy it from your Spotify app's settings");
+    return;
+  }
+  JsonDocument doc;
+  doc["url"] = spotify::beginLogin(client_id, net::address());
+  sendJson(doc);
+}
+
+// Spotify -> GitHub Pages (site/spotify-callback.html) -> here, with ?code=&state= or ?error=.
+void handleSpotifyCallback() {
+  String error = server.arg("error");
+  bool ok = false;
+  if (error.isEmpty()) ok = spotify::finishLogin(server.arg("code"), server.arg("state"), error);
+  if (error == "access_denied") error = "Spotify access wasn't allowed.";
+  String page = "<!doctype html><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'>"
+                "<title>Spotify</title><body style='font:16px system-ui;padding:32px;max-width:520px;margin:auto'>";
+  if (ok) {
+    page += "<h1>Spotify connected</h1><p>The display will show what you play. Taking you back to the settings&hellip;</p>"
+            "<script>setTimeout(()=>location.href='/',2500)</script>";
+  } else {
+    page += "<h1>Couldn&rsquo;t connect Spotify</h1><p>";
+    for (char c : error) page += c == '<' ? String("&lt;") : c == '&' ? String("&amp;") : String(c);
+    page += "</p>";
+  }
+  page += "<p><a href='/'>Back to settings</a></p></body>";
+  server.send(ok ? 200 : 400, "text/html", page);
+}
+
+void handleSpotifyDevices() {
+  std::vector<String> names;
+  String error;
+  if (!spotify::devices(names, error)) {
+    server.send(503, "text/plain", error);
+    return;
+  }
+  JsonDocument doc;
+  JsonArray list = doc.to<JsonArray>();
+  for (const String& name : names) list.add(name);
+  sendJson(doc);
+}
+
+void handleSpotifySignOut() {
+  spotify::signOut();
   server.send(200, "text/plain", "ok");
   restartSoon();
 }
@@ -148,6 +210,10 @@ void task(void*) {
   server.on("/api/wifi", HTTP_POST, handleSaveWifi);
   server.on("/api/settings", HTTP_POST, handleSaveSettings);
   server.on("/api/restart", HTTP_POST, handleRestart);
+  server.on("/api/spotify/login", HTTP_POST, handleSpotifyLogin);
+  server.on("/api/spotify/devices", HTTP_GET, handleSpotifyDevices);
+  server.on("/api/spotify/signout", HTTP_POST, handleSpotifySignOut);
+  server.on("/spotify/callback", HTTP_GET, handleSpotifyCallback);
   server.onNotFound(handleNotFound);
   server.begin();
 

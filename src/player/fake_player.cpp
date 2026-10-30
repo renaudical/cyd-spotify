@@ -6,6 +6,7 @@
 #include "assets/assets.h"
 #include "net/net.h"
 #include "player.h"
+#include "spotify.h"
 
 namespace player {
 namespace {
@@ -58,6 +59,7 @@ void load(size_t i) {
 }  // namespace
 
 void begin() {
+  current.source = "Fake";
   load(0);
   last_tick_ms = millis();
 }
@@ -92,10 +94,25 @@ void next() { load((index + 1) % kTrackCount); }
 
 void previous() { load((index + kTrackCount - 1) % kTrackCount); }
 
-bool suspend() { return true; }
-
-void resume() {}
 
 }  // namespace player
+
+// The settings page still links against Spotify sign-in; with fake tracks there's nothing to sign in to.
+namespace spotify {
+
+const char* redirectUri() { return ""; }
+String beginLogin(const String&, const String&) { return ""; }
+bool finishLogin(const String&, const String&, String& error) {
+  error = "Not available with the fake player";
+  return false;
+}
+bool signedIn() { return false; }
+void signOut() {}
+bool devices(std::vector<String>&, String& error) {
+  error = "Not available with the fake player";
+  return false;
+}
+
+}  // namespace spotify
 
 #endif  // FAKE_PLAYER

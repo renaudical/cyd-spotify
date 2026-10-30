@@ -5,13 +5,13 @@
 #include <HTTPClient.h>
 #include <Update.h>
 #include <WiFiClientSecure.h>
+#include <esp_heap_caps.h>
 #include <esp_ota_ops.h>
 #include <mbedtls/sha256.h>
 
 #include <atomic>
 
 #include "net/net.h"
-#include "player/player.h"
 
 // Set by the release workflow (-DFIRMWARE_VERSION=\"1.2.0\"); local builds are "dev".
 #ifndef FIRMWARE_VERSION
@@ -41,6 +41,7 @@ std::atomic<bool> idle{false};
 std::atomic<bool> is_installing{false};
 std::atomic<uint8_t> progress{0};
 char target[16] = "";
+uint32_t next_check_at = kFirstCheckMs;
 
 struct Release {
   String version;  // tag name, e.g. "v1.2.0"
@@ -190,12 +191,18 @@ void install(const Release& release) {
   is_installing = false;
 }
 
-// Checks once; returns false if it couldn't reach GitHub.
-bool check() {
-  // TLS needs ~40 KB of contiguous heap, which isn't there while the player's own session is open.
-  if (!player::suspend()) return false;
-  Serial.printf("update: checking (free heap %u, largest block %u)\n", (unsigned)ESP.getFreeHeap(),
-                (unsigned)ESP.getMaxAllocHeap());
+}  // namespace
+
+void begin() { Serial.printf("update: running %s\n", FIRMWARE_VERSION); }
+
+bool due() {
+  return idle && net::wifi() == net::Wifi::kConnected && (int32_t)(millis() - next_check_at) >= 0;
+}
+
+void check() {
+  Serial.printf("update: checking (free heap %u, largest block %u)\n",
+                (unsigned)heap_caps_get_free_size(MALLOC_CAP_8BIT),
+                (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
   // The TLS handshake with api.github.com (ECDSA P-384, verified in software) computes for several
   // seconds without yielding, which would starve core 0's idle task into a watchdog reset.
   disableCore0WDT();
@@ -206,24 +213,7 @@ bool check() {
     confirmVersion();
     if (release.size && isNewer(release.version.c_str())) install(release);
   }
-  player::resume();
-  return reached;
-}
-
-void task(void*) {
-  uint32_t next_check_at = kFirstCheckMs;
-  for (;;) {
-    vTaskDelay(pdMS_TO_TICKS(5000));
-    if (net::wifi() != net::Wifi::kConnected || !idle || (int32_t)(millis() - next_check_at) < 0) continue;
-    next_check_at = millis() + (check() ? kCheckIntervalMs : kRetryMs);
-  }
-}
-
-}  // namespace
-
-void begin() {
-  Serial.printf("update: running %s\n", FIRMWARE_VERSION);
-  xTaskCreatePinnedToCore(task, "update", 8192, nullptr, 1, nullptr, 0);
+  next_check_at = millis() + (reached ? kCheckIntervalMs : kRetryMs);
 }
 
 void setIdle(bool is_idle) { idle = is_idle; }
