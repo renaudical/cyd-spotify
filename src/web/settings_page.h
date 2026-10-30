@@ -122,6 +122,15 @@ code { display:inline-block; padding:2px 6px; border-radius:4px; background:var(
     <section>
       <h2>Device</h2>
       <p class="hint" id="device"></p>
+      <form id="flip-form">
+        <label for="flip">Screen</label>
+        <select id="flip">
+          <option value="0">Normal</option>
+          <option value="1">Upside down (rotated 180&deg;)</option>
+        </select>
+        <button>Save</button>
+        <p class="msg" id="flip-msg"></p>
+      </form>
       <button class="secondary" id="restart">Restart</button>
     </section>
   </div>
@@ -215,6 +224,7 @@ async function main() {
   } else {
     $("wifi-hint").textContent = `Connected to “${s.ssid}” as ${s.hostname} (${s.ip}).`;
     $("device").textContent = `Version ${s.version} · ${s.hostname} · ${s.ip}`;
+    $("flip").value = s.flip_screen ? "1" : "0";
     $("normal").hidden = false;
     for (const r of document.querySelectorAll("input[name=source]")) {
       r.checked = r.value === s.source;
@@ -273,7 +283,11 @@ async function main() {
     e.preventDefault();
     post("/api/settings", { timezone: $("tz").value }, "tz-msg", "Saved. The display is restarting.");
   };
-  $("restart").onclick = () => post("/api/restart", {}, "tz-msg", "Restarting…");
+  $("flip-form").onsubmit = e => {
+    e.preventDefault();
+    post("/api/settings", { flip_screen: $("flip").value }, "flip-msg", "Saved. The display is restarting.");
+  };
+  $("restart").onclick = () => post("/api/restart", {}, "flip-msg", "Restarting…");
 }
 main();
 </script>

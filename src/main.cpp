@@ -31,7 +31,8 @@ void setup() {
   lv_tick_set_cb(tick);
 
   lv_display_t* display = lv_tft_espi_create(board::kNativeWidth, board::kNativeHeight, draw_buf, sizeof(draw_buf));
-  lv_display_set_rotation(display, LV_DISPLAY_ROTATION_90);
+  // Landscape; touch follows, since LVGL rotates the native-portrait touch points to match.
+  lv_display_set_rotation(display, settings::flipScreen() ? LV_DISPLAY_ROTATION_270 : LV_DISPLAY_ROTATION_90);
 
   backlight::begin();
   touch::begin();

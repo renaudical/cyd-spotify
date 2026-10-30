@@ -19,6 +19,7 @@ constexpr char kSource[] = "source";
 constexpr char kSpotifyClientId[] = "sp_client";
 constexpr char kSpotifyRefresh[] = "sp_refresh";
 constexpr char kSpotifyDevice[] = "sp_device";
+constexpr char kFlipScreen[] = "flip";
 
 char device_id[5];
 char host_name[24];
@@ -90,6 +91,9 @@ void setWiimHost(const String& host) { put(kWiimHost, host); }
 
 String timezone() { return get(kTimezone); }
 void setTimezone(const String& posix) { put(kTimezone, posix); }
+
+bool flipScreen() { return get(kFlipScreen) == "1"; }
+void setFlipScreen(bool flip) { put(kFlipScreen, flip ? "1" : "0"); }
 
 const char* deviceId() { return device_id; }
 const char* hostname() { return host_name; }

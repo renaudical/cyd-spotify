@@ -38,6 +38,10 @@ void setWiimHost(const String& host);
 String timezone();
 void setTimezone(const String& posix);
 
+// Draw the screen rotated 180°, for displays mounted the other way up. Safe to read before begin().
+bool flipScreen();
+void setFlipScreen(bool flip);
+
 // Short id from the MAC address, e.g. "1a2b": names the setup network ("Brickman-1A2B") and the
 // mDNS hostname ("brickman-1a2b.local") so several displays on one network don't collide.
 const char* deviceId();

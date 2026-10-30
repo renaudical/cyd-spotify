@@ -23,7 +23,7 @@ You can also skip Wi-Fi in the installer. The display then shows a QR code: scan
 
 Everything else is set on the display's own web page. Hold the album art for 2 seconds: the theme picker opens, and its bottom line shows the display's address (for example `192.168.1.23`). Open that address in a browser on the same network, or use `http://brickman-xxxx.local`.
 
-The page sets Wi-Fi, the music source, the clock's time zone (detected automatically, but you can pick one), and lets you restart the display.
+The page sets Wi-Fi, the music source, the clock's time zone (detected automatically, but you can pick one), turns the screen upside down if your build has the USB ports on the other side, and restarts the display.
 
 ## Where the music comes from
 

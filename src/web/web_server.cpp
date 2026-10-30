@@ -47,6 +47,7 @@ void handleStatus() {
   doc["spotify_redirect_uri"] = spotify::redirectUri();
   doc["timezone"] = settings::timezone();
   doc["timezone_detected"] = tz::detectedName();
+  doc["flip_screen"] = settings::flipScreen();
   sendJson(doc);
 }
 
@@ -124,6 +125,7 @@ void handleSaveSettings() {
     }
     settings::setTimezone(zone);
   }
+  if (server.hasArg("flip_screen")) settings::setFlipScreen(server.arg("flip_screen") == "1");
   server.send(200, "text/plain", "ok");
   restartSoon();
 }
