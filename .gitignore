@@ -1,0 +1,7 @@
+.pio/
+.vscode/
+# Licensed Hoefler&Co Ringside fonts, no longer used (the design switched to Grift).
+design/fonts/Ringside*
+
+# Wi-Fi credentials and WiiM address (template: include/secrets.example.h).
+include/secrets.h
