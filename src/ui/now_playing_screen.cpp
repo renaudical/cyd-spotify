@@ -141,6 +141,9 @@ void showTrack(const player::State& s) {
     case player::Link::kWiimUnreachable:
       showMessage("Can\xe2\x80\x99t reach the WiiM", "Retrying\xe2\x80\xa6");
       return;
+    case player::Link::kWiimNotFound:
+      showMessage("No WiiM found on this network", "Still looking\xe2\x80\xa6");
+      return;
   }
 
   if (s.status == player::Status::kStopped) {

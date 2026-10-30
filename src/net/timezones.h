@@ -2,8 +2,8 @@
 
 #include <stddef.h>
 
-// The screensaver clock's local time. NTP only gives UTC, so the timezone comes from TIMEZONE in
-// secrets.h if set, otherwise from an IP geolocation lookup (saved in NVS, so later boots don't wait on it).
+// The screensaver clock's local time. NTP only gives UTC, so the timezone comes from settings if one was
+// chosen, otherwise from an IP geolocation lookup (saved in NVS, so later boots don't wait on it).
 namespace tz {
 
 struct Zone {
@@ -18,9 +18,12 @@ extern const size_t kZoneCount;
 // POSIX rule for an IANA name, or nullptr if unknown.
 const char* lookup(const char* iana);
 
-// True once local time can be trusted: TIMEZONE is set, or a zone was saved or detected.
+// True once local time can be trusted: a zone was chosen in settings, or saved or detected.
 // Until then the clock is hidden rather than showing UTC. Safe to call from any task.
 bool known();
+
+// The IANA name this boot's lookup found, e.g. "America/Chicago"; empty if none ran or it failed.
+const char* detectedName();
 
 // Called by the net task whenever Wi-Fi is up: starts SNTP once, then detects the zone if needed,
 // retrying with backoff. Blocks for at most a few seconds per attempt.

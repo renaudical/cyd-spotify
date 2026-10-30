@@ -12,13 +12,13 @@
 #include "album_art.h"
 #include "net/net.h"
 #include "player.h"
-#include "secrets.h"
+#include "settings/settings.h"
+#include "wiim_discovery.h"
 #include "wiim_text.h"
 
 namespace player {
 namespace {
 
-constexpr char kApiUrl[] = "https://" WIIM_HOST "/httpapi.asp?command=";
 constexpr uint32_t kPollMs = 1000;
 constexpr uint16_t kTimeoutMs = 3000;
 // Consecutive failed polls before the UI says the WiiM can't be reached.
@@ -27,7 +27,9 @@ constexpr int kFailuresBeforeUnreachable = 3;
 constexpr uint32_t kArtRetryMs = 10000;
 constexpr int kArtAttempts = 3;
 
-enum class Reach : uint8_t { kConnecting, kOk, kUnreachable };
+enum class Reach : uint8_t { kConnecting, kOk, kUnreachable, kNotFound };
+// How often to look for a WiiM on the network while none has been found.
+constexpr uint32_t kDiscoverRetryMs = 10000;
 enum class Command : uint8_t { kTogglePlayPause, kNext, kPrevious };
 
 struct Poll {
@@ -60,6 +62,8 @@ SemaphoreHandle_t lock;
 QueueHandle_t commands;
 
 // Only touched by the poll task.
+String host;  // the WiiM's address: from settings, or found on the network when that's empty
+bool auto_host = true;
 WiFiClientSecure tls;
 HTTPClient http;
 String art_url;
@@ -79,7 +83,7 @@ std::atomic<bool> suspended{false};
 constexpr uint32_t kSuspendTimeoutMs = 20000;  // a poll plus an art download, worst case
 
 bool request(const char* command, String& reply) {
-  String url = kApiUrl;
+  String url = "https://" + host + "/httpapi.asp?command=";
   url += command;
   if (!http.begin(tls, url)) return false;
   int code = http.GET();
@@ -173,7 +177,23 @@ void setReach(Reach reach) {
   xSemaphoreGive(lock);
 }
 
+// Picks the first WiiM on the network; false if there's none.
+bool findHost() {
+  std::vector<wiim::Device> found = wiim::discover();
+  if (found.empty()) {
+    Serial.println("wiim: none found on the network");
+    return false;
+  }
+  host = found[0].ip;
+  Serial.printf("wiim: found %s at %s\n", found[0].name.c_str(), host.c_str());
+  http.end();
+  tls.stop();  // any open connection is to the old address
+  return true;
+}
+
 void task(void*) {
+  host = settings::wiimHost();
+  auto_host = host.isEmpty();
   tls.setInsecure();  // the WiiM only speaks HTTPS, with a self-signed certificate
   tls.setHandshakeTimeout(kTimeoutMs / 1000);
   http.setReuse(true);
@@ -195,6 +215,10 @@ void task(void*) {
     if (net::wifi() != net::Wifi::kConnected) {
       failures = 0;
       setReach(Reach::kConnecting);
+    } else if (host.isEmpty() && !findHost()) {
+      setReach(Reach::kNotFound);
+      vTaskDelay(pdMS_TO_TICKS(kDiscoverRetryMs));
+      continue;
     } else if (fetchStatus(poll)) {
       if (failures >= kFailuresBeforeUnreachable) Serial.println("wiim: reachable again");
       failures = 0;
@@ -207,6 +231,7 @@ void task(void*) {
     } else if (++failures == kFailuresBeforeUnreachable) {
       Serial.println("wiim: unreachable");
       setReach(Reach::kUnreachable);
+      if (auto_host) host = "";  // it may have a new address; look again
     }
 
     // Sleep until the next poll, but wake for a button press and poll right after it.
@@ -230,6 +255,7 @@ Link currentLink(Reach reach) {
   }
   if (reach == Reach::kConnecting) return Link::kWiimConnecting;
   if (reach == Reach::kUnreachable) return Link::kWiimUnreachable;
+  if (reach == Reach::kNotFound) return Link::kWiimNotFound;
   return Link::kOk;
 }
 

@@ -10,7 +10,7 @@
 
 #include <atomic>
 
-#include "secrets.h"
+#include "settings/settings.h"
 
 namespace tz {
 namespace {
@@ -31,6 +31,7 @@ bool done = false;  // detected, or nothing left to detect
 uint32_t next_attempt_at = 0;
 uint32_t retry_ms = kFirstRetryMs;
 std::atomic<bool> is_known{false};
+char detected_name[48] = "";  // IANA name from this boot's lookup; set before is_known
 
 // Asks ip-api.com which zone this network's public IP is in. A VPN gives the VPN's zone.
 bool detect(String& iana) {
@@ -66,10 +67,11 @@ void detectAndApply() {
   done = true;
   const char* posix = lookup(iana.c_str());
   if (!posix) {
-    Serial.printf("tz: '%s' isn't in the table (rerun tools/gen_timezones.py); set TIMEZONE\n", iana.c_str());
+    Serial.printf("tz: '%s' isn't in the table (rerun tools/gen_timezones.py); set it in settings\n", iana.c_str());
     return;
   }
   Serial.printf("tz: detected %s (%s)\n", iana.c_str(), posix);
+  snprintf(detected_name, sizeof(detected_name), "%s", iana.c_str());
   setenv("TZ", posix, 1);
   tzset();
   is_known = true;
@@ -96,15 +98,21 @@ const char* lookup(const char* iana) {
 
 bool known() { return is_known; }
 
+const char* detectedName() { return is_known ? detected_name : ""; }
+
 void poll() {
   if (!started) {
     started = true;
-#ifdef TIMEZONE
-    configTzTime(TIMEZONE, NTP_SERVERS);
-    Serial.printf("tz: %s (TIMEZONE in secrets.h)\n", TIMEZONE);
-    is_known = true;
-    done = true;
-#else
+    String manual = settings::timezone();
+    if (manual.length()) {
+      // The settings page saves an IANA name; secrets.h's TIMEZONE seeds a POSIX string.
+      const char* posix = lookup(manual.c_str());
+      configTzTime(posix ? posix : manual.c_str(), NTP_SERVERS);
+      Serial.printf("tz: %s (set in settings)\n", manual.c_str());
+      is_known = true;
+      done = true;
+      return;
+    }
     // Use the last detected zone right away, then check it once per boot in case the device moved.
     Preferences prefs;
     prefs.begin(kPrefsNamespace, true);
@@ -112,7 +120,6 @@ void poll() {
     prefs.end();
     configTzTime(saved.length() ? saved.c_str() : "UTC0", NTP_SERVERS);
     is_known = saved.length() > 0;
-#endif
   }
   if (!done && (int32_t)(millis() - next_attempt_at) >= 0) detectAndApply();
 }

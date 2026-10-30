@@ -11,7 +11,7 @@ namespace player {
 enum class Status { kStopped, kPaused, kPlaying };
 
 // Whether the track fields can be trusted; anything but kOk means the UI shows a problem message instead.
-enum class Link { kOk, kWifiConnecting, kWifiLost, kWiimConnecting, kWiimUnreachable };
+enum class Link { kOk, kWifiConnecting, kWifiLost, kWiimConnecting, kWiimUnreachable, kWiimNotFound };
 
 struct State {
   // Bumped whenever anything other than the position changes, so the UI can skip redraws.

@@ -4,12 +4,14 @@
 #include "backlight.h"
 #include "board.h"
 #include "net/net.h"
+#include "settings/settings.h"
 #include "player/player.h"
 #include "themes/theme.h"
 #include "touch.h"
 #include "ui/dev_screens.h"
 #include "ui/ui.h"
 #include "updater/updater.h"
+#include "web/web_server.h"
 
 namespace {
 
@@ -40,10 +42,13 @@ void setup() {
 #ifdef DEV_SCREENS
   ui::showSwatches();
 #else
+  settings::begin();
   net::begin();
+  web::begin();
   player::begin();
   updater::begin();
   ui::begin();
+  Serial.printf("heap: free %u, largest block %u\n", (unsigned)ESP.getFreeHeap(), (unsigned)ESP.getMaxAllocHeap());
 #endif
 }
 
