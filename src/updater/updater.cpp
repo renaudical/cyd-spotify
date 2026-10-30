@@ -166,8 +166,14 @@ void install(const Release& release) {
   size_t written = 0;
   uint32_t last_data = millis();
   while (written < release.size && millis() - last_data < kTimeoutMs) {
-    size_t n = stream->readBytes(buf, min(sizeof(buf), release.size - written));
-    if (n == 0) continue;
+    // Only read what has arrived: readBytes() busy-waits for more, which starves core 0's idle task
+    // into a watchdog reset.
+    size_t available = stream->available();
+    if (available == 0) {
+      vTaskDelay(pdMS_TO_TICKS(5));
+      continue;
+    }
+    size_t n = stream->readBytes(buf, min(min(sizeof(buf), available), release.size - written));
     if (Update.write(buf, n) != n) break;
     mbedtls_sha256_update(&sha, buf, n);
     written += n;
