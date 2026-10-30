@@ -125,8 +125,8 @@ code { display:inline-block; padding:2px 6px; border-radius:4px; background:var(
       <form id="flip-form">
         <label for="flip">Screen</label>
         <select id="flip">
-          <option value="0">Normal</option>
-          <option value="1">Upside down (rotated 180&deg;)</option>
+          <option value="1">For the 3D-printed case</option>
+          <option value="0">Rotated 180&deg;, for a bare board</option>
         </select>
         <button>Save</button>
         <p class="msg" id="flip-msg"></p>

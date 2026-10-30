@@ -92,7 +92,7 @@ void setWiimHost(const String& host) { put(kWiimHost, host); }
 String timezone() { return get(kTimezone); }
 void setTimezone(const String& posix) { put(kTimezone, posix); }
 
-bool flipScreen() { return get(kFlipScreen) == "1"; }
+bool flipScreen() { return get(kFlipScreen) != "0"; }
 void setFlipScreen(bool flip) { put(kFlipScreen, flip ? "1" : "0"); }
 
 const char* deviceId() { return device_id; }

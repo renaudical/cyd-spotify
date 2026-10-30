@@ -38,7 +38,8 @@ void setWiimHost(const String& host);
 String timezone();
 void setTimezone(const String& posix);
 
-// Draw the screen rotated 180°, for displays mounted the other way up. Safe to read before begin().
+// Draw the screen rotated 180°. On by default: the 3D-printed case mounts the board with its USB ports
+// on the other side. Off is for a bare board. Safe to read before begin().
 bool flipScreen();
 void setFlipScreen(bool flip);
 
