@@ -46,6 +46,7 @@
       border-radius: 12px;
       padding: 24px;
     }
+    .hero { display: block; width: 100%; height: auto; border-radius: 12px; margin: 0 0 32px; background: #000; }
     .install { text-align: center; }
     .install p { color: var(--muted); margin: 12px 0 0; font-size: 0.95rem; }
     esp-web-install-button { --esp-tools-button-color: var(--accent); --esp-tools-button-text-color: var(--accent-text); }
@@ -62,6 +63,9 @@
   <h1>Now Playing Brickman</h1>
   <p class="lede">A little touchscreen that shows what's playing, with album art, playback controls, a clock
     screensaver and a new theme every month.</p>
+
+  <img class="hero" src="images/santa.jpg" width="1200" height="780"
+    alt="The Santa build taken apart: a red brick-figure body with the display in its chest, showing a song with album art and playback controls">
 
   <div class="card install">
     <esp-web-install-button manifest="manifest.json">

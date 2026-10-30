@@ -1,0 +1,70 @@
+# Redeploys the installer page when site/ changes on main, without publishing a release. The firmware
+# it offers is rebuilt from the latest release's tag, so the page always installs that release and no
+# display gets an update.
+name: Site
+
+on:
+  push:
+    branches: [main]
+    paths: ["site/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write  # deploy to Pages
+
+concurrency:
+  group: release  # shared with release.yml, so the two never deploy over each other
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Check out the latest release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag=$(gh release view --json tagName --jq .tagName)
+          echo "VERSION=${tag#v}" >> "$GITHUB_ENV"
+          git worktree add firmware "$tag"
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - uses: actions/cache@v6
+        with:
+          path: ~/.platformio
+          key: platformio-${{ hashFiles('firmware/platformio.ini') }}
+
+      - name: Install PlatformIO
+        run: pip install platformio==6.2.0
+
+      - name: Build
+        working-directory: firmware
+        run: |
+          PLATFORMIO_BUILD_FLAGS="-DFIRMWARE_VERSION=\\\"$VERSION\\\"" pio run
+          tools/package_release.sh "$VERSION"
+
+      - name: Assemble installer site
+        run: cp -R site/. firmware/dist/site/
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: firmware/dist/site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5
