@@ -35,4 +35,9 @@ void togglePlayPause();
 void next();
 void previous();
 
+// Closes the player's network connections and stops polling, so another task (the updater) has the
+// heap for its own TLS session. Blocks until done; false if it timed out. Any task but the UI's.
+bool suspend();
+void resume();
+
 }  // namespace player

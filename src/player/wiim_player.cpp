@@ -7,6 +7,8 @@
 #include <HTTPClient.h>
 #include <WiFiClientSecure.h>
 
+#include <atomic>
+
 #include "album_art.h"
 #include "net/net.h"
 #include "player.h"
@@ -70,6 +72,11 @@ Poll latest = {};
 uint32_t latest_seq = 0;
 uint32_t art_seq = 0;
 int8_t art = -1;
+
+// suspend()/resume() handshake with the poll task.
+std::atomic<bool> suspend_requested{false};
+std::atomic<bool> suspended{false};
+constexpr uint32_t kSuspendTimeoutMs = 20000;  // a poll plus an art download, worst case
 
 bool request(const char* command, String& reply) {
   String url = kApiUrl;
@@ -176,6 +183,14 @@ void task(void*) {
   Poll poll = {};
   int failures = 0;
   for (;;) {
+    if (suspend_requested) {
+      http.end();
+      tls.stop();
+      suspended = true;
+      while (suspend_requested) vTaskDelay(pdMS_TO_TICKS(100));
+      suspended = false;
+    }
+
     uint32_t started = millis();
     if (net::wifi() != net::Wifi::kConnected) {
       failures = 0;
@@ -286,6 +301,21 @@ const State& state() { return current; }
 void togglePlayPause() { queue(Command::kTogglePlayPause); }
 void next() { queue(Command::kNext); }
 void previous() { queue(Command::kPrevious); }
+
+bool suspend() {
+  suspend_requested = true;
+  uint32_t started = millis();
+  while (!suspended) {
+    if (millis() - started > kSuspendTimeoutMs) {
+      suspend_requested = false;
+      return false;
+    }
+    vTaskDelay(pdMS_TO_TICKS(50));
+  }
+  return true;
+}
+
+void resume() { suspend_requested = false; }
 
 }  // namespace player
 

@@ -1,0 +1,10 @@
+# 4 MB flash: two app slots for over-the-air updates (the new version installs into the idle slot, and
+# the bootloader rolls back to the old one if the new one doesn't confirm itself), plus LittleFS for
+# the album art download and a crash log. nvs stays where huge_app.csv had it, so settings survive.
+# Name,   Type, SubType, Offset,   Size
+nvs,      data, nvs,     0x9000,   0x5000
+otadata,  data, ota,     0xe000,   0x2000
+app0,     app,  ota_0,   0x10000,  0x1E0000
+app1,     app,  ota_1,   0x1F0000, 0x1E0000
+spiffs,   data, spiffs,  0x3D0000, 0x20000
+coredump, data, coredump, 0x3F0000, 0x10000

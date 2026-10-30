@@ -11,7 +11,7 @@
 namespace album_art {
 namespace {
 
-constexpr size_t kMaxDownload = 256 * 1024;
+constexpr size_t kMaxDownload = 96 * 1024;  // LittleFS is 128 KB; Spotify's 300px art is ~30 KB
 constexpr uint16_t kTimeoutMs = 5000;
 // Downloads go to flash: a whole JPEG doesn't reliably fit in RAM next to a TLS session.
 constexpr char kArtFile[] = "/art.jpg";

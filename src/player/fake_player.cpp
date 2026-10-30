@@ -92,6 +92,10 @@ void next() { load((index + 1) % kTrackCount); }
 
 void previous() { load((index + kTrackCount - 1) % kTrackCount); }
 
+bool suspend() { return true; }
+
+void resume() {}
+
 }  // namespace player
 
 #endif  // FAKE_PLAYER

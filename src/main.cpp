@@ -9,6 +9,7 @@
 #include "touch.h"
 #include "ui/dev_screens.h"
 #include "ui/ui.h"
+#include "updater/updater.h"
 
 namespace {
 
@@ -41,6 +42,7 @@ void setup() {
 #else
   net::begin();
   player::begin();
+  updater::begin();
   ui::begin();
 #endif
 }

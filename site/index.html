@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Now Playing Brickman</title>
+  <meta name="description" content="Install the Now Playing Brickman firmware on an ESP32 Cheap Yellow Display, right from your browser.">
+  <script type="module" src="https://unpkg.com/esp-web-tools@10.4.0/dist/web/install-button.js?module"></script>
+  <style>
+    :root {
+      --bg: #fbfaf8;
+      --surface: #ffffff;
+      --text: #1d1b19;
+      --muted: #6b655f;
+      --border: #e6e1db;
+      --accent: #c8102e;
+      --accent-text: #ffffff;
+      --code-bg: #f1ede8;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #161412;
+        --surface: #1f1c1a;
+        --text: #f1ede8;
+        --muted: #a39b93;
+        --border: #34302c;
+        --accent: #e6324f;
+        --code-bg: #2a2623;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+    main { max-width: 680px; margin: 0 auto; padding: 48px 16px 64px; }
+    h1 { font-size: 2rem; line-height: 1.2; margin: 0 0 8px; letter-spacing: -0.01em; }
+    h2 { font-size: 1.15rem; margin: 40px 0 12px; }
+    p, li { color: var(--text); }
+    .lede { color: var(--muted); font-size: 1.1rem; margin: 0 0 32px; }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+    }
+    .install { text-align: center; }
+    .install p { color: var(--muted); margin: 12px 0 0; font-size: 0.95rem; }
+    esp-web-install-button { --esp-tools-button-color: var(--accent); --esp-tools-button-text-color: var(--accent-text); }
+    .notice { color: var(--muted); }
+    ol, ul { padding-left: 1.3em; }
+    li { margin: 6px 0; }
+    code { background: var(--code-bg); padding: 1px 6px; border-radius: 4px; font-size: 0.9em; }
+    a { color: var(--accent); }
+    footer { margin-top: 48px; color: var(--muted); font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Now Playing Brickman</h1>
+  <p class="lede">A little touchscreen that shows what's playing, with album art, playback controls, a clock
+    screensaver and a new theme every month.</p>
+
+  <div class="card install">
+    <esp-web-install-button manifest="manifest.json">
+      <span slot="unsupported" class="notice">Installing needs Chrome or Edge on a computer
+        (Web Serial isn't available in this browser).</span>
+      <span slot="not-allowed" class="notice">Installing needs this page to be opened over HTTPS.</span>
+    </esp-web-install-button>
+    <p>Plug in your display, click Install and pick its USB port.</p>
+  </div>
+
+  <h2>What you need</h2>
+  <ul>
+    <li>An <strong>ESP32-2432S028R</strong> &ldquo;Cheap Yellow Display&rdquo; (2.8&Prime;, 320&times;240, resistive
+      touch). Boards with two USB ports or an ST7789 screen are a different variant and may show wrong colors.</li>
+    <li>A USB cable that carries data (some charging cables don't).</li>
+    <li>Chrome or Edge on a Mac, Windows or Linux computer.</li>
+  </ul>
+
+  <h2>Updates</h2>
+  <p>Once installed, the display checks for new versions on its own and installs them while the screensaver
+    is up, including each month's new theme. Pick themes by holding the album art for two seconds.</p>
+
+  <h2>Troubleshooting</h2>
+  <ul>
+    <li><strong>No port shows up:</strong> try another cable, and on Windows install the
+      <a href="https://www.wch-ic.com/downloads/CH341SER_EXE.html">CH340 USB driver</a>.</li>
+    <li><strong>It won't connect:</strong> hold the board's <code>BOOT</code> button while clicking Install,
+      and release it once the progress bar starts.</li>
+  </ul>
+
+  <footer>
+    <a href="https://github.com/renaudical/cyd-spotify">Source on GitHub</a>
+  </footer>
+</main>
+</body>
+</html>

@@ -1,5 +1,6 @@
 #include "themes/theme.h"
 #include "ui.h"
+#include "updater/updater.h"
 
 namespace ui {
 namespace {
@@ -81,6 +82,11 @@ lv_obj_t* createThemePicker(void (*on_pick)(size_t), void (*on_close)()) {
   lv_obj_set_size(back, 64, kHeaderH);
   lv_obj_set_pos(back, 320 - kMarginX - 64, kTop);
   lv_obj_center(makeLabel(back, th.font_meta, "Back"));
+
+  // Firmware version, in the bottom margin, for support questions.
+  lv_obj_t* version = makeLabel(scr, th.font_meta, updater::currentVersion());
+  lv_obj_set_style_text_opa(version, LV_OPA_60, 0);
+  lv_obj_align(version, LV_ALIGN_BOTTOM_RIGHT, -kMarginX, -6);
   lv_obj_add_event_cb(back, onBack, LV_EVENT_CLICKED, nullptr);
 
   // Rows scroll if there are more themes than fit.

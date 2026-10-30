@@ -2,6 +2,8 @@
 
 #include <stdint.h>
 
+class WiFiClientSecure;
+
 // Wi-Fi link, kept alive by a FreeRTOS task on core 0 so the UI (core 1) never blocks on the network.
 namespace net {
 
@@ -11,5 +13,9 @@ void begin();
 
 // Safe to call from any task.
 Wifi wifi();
+
+// Makes the client verify servers against the embedded root CAs (data/cert/x509_crt_bundle.bin).
+// Call before the first connection.
+void useTrustedRoots(WiFiClientSecure& client);
 
 }  // namespace net

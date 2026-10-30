@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 #include <WiFi.h>
+#include <WiFiClientSecure.h>
 
 #include <atomic>
 
@@ -55,5 +56,10 @@ void task(void*) {
 void begin() { xTaskCreatePinnedToCore(task, "net", 8192, nullptr, 1, nullptr, 0); }
 
 Wifi wifi() { return state; }
+
+// Embedded by board_build.embed_files in platformio.ini.
+extern const uint8_t x509_crt_bundle_start[] asm("_binary_data_cert_x509_crt_bundle_bin_start");
+
+void useTrustedRoots(WiFiClientSecure& client) { client.setCACertBundle(x509_crt_bundle_start); }
 
 }  // namespace net
