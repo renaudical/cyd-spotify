@@ -23,6 +23,12 @@ font Grift-Medium.otf 12 grift_medium_12
 font Grift-SemiBold.otf 26 grift_semibold_26 "$clock_range"
 font Grift-SemiBold.otf 21 grift_semibold_21 "$clock_range"
 
+# The art placeholder's music note (LV_SYMBOL_AUDIO) alone, from the FontAwesome subset LVGL ships;
+# all of Montserrat 28 just for this glyph cost 35 KB of flash.
+npx -y lv_font_conv@1.5.2 --no-compress --format lvgl --bpp 4 --size 28 \
+  --font .pio/libdeps/cyd/lvgl/scripts/built_in_font/FontAwesome5-Solid+Brands+Regular.woff -r 0xF001 \
+  --lv-include lvgl.h -o src/fonts/symbol_audio_28.c
+
 for icon in prev play_pause next; do
   rsvg-convert -w 32 -h 32 "design/assets/icons/$icon.svg" -o "$tmp/$icon.png"
   python3 -I tools/png_to_lvgl.py "$tmp/$icon.png" a8 "icon_$icon" > "src/assets/icon_$icon.c"

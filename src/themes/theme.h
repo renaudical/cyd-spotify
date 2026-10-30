@@ -25,7 +25,7 @@ struct Theme {
   // Shown in the album art box when a source has no art or it fails to load.
   lv_color_t art_placeholder_bg;
   lv_color_t art_placeholder_fg;
-  const lv_font_t* font_art_placeholder;  // must contain LV_SYMBOL_AUDIO
+  const lv_font_t* font_art_placeholder;  // must contain LV_SYMBOL_AUDIO (symbol_audio_28 does)
 
   const lv_font_t* font_title;
   const lv_font_t* font_meta;  // artist and album

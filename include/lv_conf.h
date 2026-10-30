@@ -8,7 +8,7 @@
 // Built-in LVGL display driver on top of TFT_eSPI.
 #define LV_USE_TFT_ESPI 1
 
-// Fonts referenced by themes and the calibration screen.
+// Fonts used by the theme picker, dev screens and as the default. Unreferenced ones are dropped at link time.
 #define LV_FONT_MONTSERRAT_10 1
 #define LV_FONT_MONTSERRAT_14 1
 #define LV_FONT_MONTSERRAT_28 1
@@ -18,5 +18,34 @@
 
 // The Wi-Fi setup screen shows a QR code that joins the setup network.
 #define LV_USE_QRCODE 1
+
+// Widgets nothing uses. LVGL's default theme links in every enabled widget, so each costs flash
+// (~35 KB together). Labels, images, buttons, bars and the canvas (under the QR code) stay.
+#define LV_USE_ANIMIMG 0
+#define LV_USE_ARC 0
+#define LV_USE_BUTTONMATRIX 0
+#define LV_USE_CALENDAR 0
+#define LV_USE_CHART 0
+#define LV_USE_CHECKBOX 0
+#define LV_USE_DROPDOWN 0
+#define LV_USE_IMAGEBUTTON 0
+#define LV_USE_KEYBOARD 0
+#define LV_USE_LED 0
+#define LV_USE_LINE 0
+#define LV_USE_LIST 0
+#define LV_USE_MENU 0
+#define LV_USE_MSGBOX 0
+#define LV_USE_ROLLER 0
+#define LV_USE_SCALE 0
+#define LV_USE_SLIDER 0
+#define LV_USE_SPAN 0
+#define LV_USE_SPINBOX 0
+#define LV_USE_SPINNER 0
+#define LV_USE_SWITCH 0
+#define LV_USE_TABLE 0
+#define LV_USE_TABVIEW 0
+#define LV_USE_TEXTAREA 0
+#define LV_USE_TILEVIEW 0
+#define LV_USE_WIN 0
 
 #endif

@@ -42,7 +42,7 @@ const Theme theme = {
     lv_color_hex(web_white),  // icon
     lv_color_hex(suit_red),   // art_placeholder_bg
     lv_color_hex(web_white),  // art_placeholder_fg
-    &lv_font_montserrat_28,   // font_art_placeholder
+    &symbol_audio_28,          // font_art_placeholder
     font_title,
     font_meta,
     meta_letter_space,

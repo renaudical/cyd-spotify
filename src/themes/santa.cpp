@@ -53,7 +53,7 @@ const Theme theme = {
     lv_color_hex(fur_white),    // icon
     lv_color_hex(belt_black),   // art_placeholder_bg
     lv_color_hex(buckle_gold),  // art_placeholder_fg
-    &lv_font_montserrat_28,     // font_art_placeholder
+    &symbol_audio_28,            // font_art_placeholder
     font_title,
     font_meta,
     meta_letter_space,
