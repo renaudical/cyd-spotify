@@ -39,6 +39,7 @@ text_font SemiBold 14 grift_semibold_14 noto_semibold_14
 text_font Medium 12 grift_medium_12 noto_medium_12
 font Grift-SemiBold.otf 26 grift_semibold_26 "$clock_range"
 font Grift-SemiBold.otf 21 grift_semibold_21 "$clock_range"
+font Grift-Bold.otf 24 grift_bold_24 "$clock_range"
 
 # The art placeholder's music note (LV_SYMBOL_AUDIO) alone, from the FontAwesome subset LVGL ships;
 # all of Montserrat 28 just for this glyph cost 35 KB of flash.
@@ -60,3 +61,6 @@ sips -s format png -z 240 320 design/assets/spider_screensaver.png --out "$tmp/s
 python3 -I tools/png_to_lvgl.py "$tmp/spider_screensaver.png" rgb565 spider_screensaver > src/assets/spider_screensaver.c
 
 echo "Generated fonts and assets."
+
+# MF DOOM clock tag, already cropped to the tag at its on-screen size (one color, tinted at runtime).
+python3 -I tools/png_to_lvgl.py design/assets/doom_tag.png a8 doom_tag > src/assets/doom_tag.c

@@ -8,5 +8,6 @@ LV_FONT_DECLARE(grift_medium_12)
 // Clock faces: only the glyphs in "0123456789: AMP".
 LV_FONT_DECLARE(grift_semibold_26)
 LV_FONT_DECLARE(grift_semibold_21)
+LV_FONT_DECLARE(grift_bold_24)
 // The art placeholder's LV_SYMBOL_AUDIO, and nothing else.
 LV_FONT_DECLARE(symbol_audio_28)

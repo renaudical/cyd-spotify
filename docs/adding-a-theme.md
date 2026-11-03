@@ -37,12 +37,12 @@ Stay under about 95%. Past that there's no room left for fixes. What things cost
 | Shapes drawn with LVGL (rectangles, rounded pills, borders; see `santa.cpp`) | almost nothing |
 | A new clock font (only the glyphs `0-9 : A M P`) | 1–2 KB |
 | A new text font size (full Latin character set) | 8–10 KB |
-| One-color image (A8, recolored at runtime; see the icons), per pixel | 1 byte (320×240 = 77 KB) |
+| One-color image (A8, recolored at runtime; see the icons and `doom.cpp`), per pixel | 1 byte (320×240 = 77 KB) |
 | Full-color image (RGB565), per pixel | 2 bytes (320×240 = 154 KB) |
 
 So: draw with shapes when you can. Use a one-color image for a single-color illustration, and a full-color image only for the part that needs it, cropped to its size rather than full screen. Spider's full-screen web (154 KB) is the most expensive thing in the firmware.
 
-Compressed or palette images (PNG, JPEG, LVGL's indexed and RLE formats) don't help here: LVGL unpacks them into RAM before drawing, and a full-screen image needs about 150 KB of RAM, while the display has under 100 KB free. So use RGB565 or A8, which draw straight from flash.
+Compressed or palette images (PNG, JPEG, LVGL's indexed and RLE formats) don't help here: LVGL unpacks them into RAM before drawing, and a full-screen image needs about 150 KB of RAM, while the display has under 100 KB free. So use RGB565, which draws straight from flash, or A8. LVGL copies an A8 image into its own 32 KB of memory each time it draws it, so an A8 image over about 10 KB has to be drawn as strips of rows, the way `doom.cpp` draws its tag; otherwise it silently doesn't appear.
 
 If the budget runs out, retire an old theme by removing it from `themes.cpp` and deleting its files. Displays that were using it fall back to the first theme in the list.
 

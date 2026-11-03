@@ -12,3 +12,6 @@ LV_IMAGE_DECLARE(demo_art_guaraldi);
 
 // Spider theme clock screensaver (320x240 RGB565), from the Figma "Clock - Spider" frame.
 LV_IMAGE_DECLARE(spider_screensaver);
+
+// MF DOOM theme clock tag (215x185 A8, tinted at runtime), from the Figma "Player - Doom" clock frame.
+LV_IMAGE_DECLARE(doom_tag);

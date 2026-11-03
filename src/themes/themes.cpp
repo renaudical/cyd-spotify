@@ -1,5 +1,6 @@
 #include <Preferences.h>
 
+#include "doom.h"
 #include "santa.h"
 #include "spider.h"
 #include "theme.h"
@@ -8,7 +9,7 @@ namespace theme {
 namespace {
 
 // Every character, in picker order. A new theme needs its own file and a line here.
-const Theme* const kThemes[] = {&santa::theme, &spider::theme};
+const Theme* const kThemes[] = {&santa::theme, &spider::theme, &doom::theme};
 constexpr size_t kCount = sizeof(kThemes) / sizeof(kThemes[0]);
 
 // Saved by name, so reordering the list doesn't change anyone's choice.
