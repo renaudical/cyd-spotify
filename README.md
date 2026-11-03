@@ -63,4 +63,4 @@ Copy `include/secrets.example.h` to `include/secrets.h` to give a development bo
 
 ## Credits
 
-UI font: Grift, used with the permission of its designer. Display drivers: [TFT_eSPI](https://github.com/Bodmer/TFT_eSPI) and [LVGL](https://lvgl.io). Album art decoding: [JPEGDEC](https://github.com/bitbank2/JPEGDEC).
+UI font: Grift, used with the permission of its designer. Fallback fonts for other scripts: [Noto Sans and Noto Sans JP](https://notofonts.github.io) (SIL Open Font License). Display drivers: [TFT_eSPI](https://github.com/Bodmer/TFT_eSPI) and [LVGL](https://lvgl.io). Album art decoding: [JPEGDEC](https://github.com/bitbank2/JPEGDEC).

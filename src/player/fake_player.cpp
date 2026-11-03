@@ -34,6 +34,12 @@ const FakeTrack kTracks[] = {
     // Accents and typographic punctuation.
     {Status::kPlaying, "Petit Papa Noël \xe2\x80\x93 L\xe2\x80\x99hiver", "Céline Dion",
      "Chants et contes de Noël\xe2\x80\xa6", 214000, 0, nullptr},
+    // Japanese: kana from the Noto fallback font, kanji (not in any font) as boxes.
+    {Status::kPlaying, "クリスマス・イブ ★ きよしこの夜", "山下達郎", "MELODIES (30th Anniversary Edition)", 268000, 30000,
+     nullptr},
+    // Cyrillic, Polish, Greek and Vietnamese.
+    {Status::kPaused, "Щедрик (Carol of the Bells)", "Микола Леонтович & Chór Łódź",
+     "Kolędy · Χριστούγεννα · Mùa Đông Năm Ấy", 103000, 41000, nullptr},
     // Nothing playing.
     {Status::kStopped, "", "", "", 0, 0, nullptr},
 };

@@ -50,7 +50,7 @@ If the budget runs out, retire an old theme by removing it from `themes.cpp` and
 
 Fonts and images become C files through `tools/gen_assets.sh`:
 
-- **Fonts:** add a `font` line. Grift files are in `design/fonts/`; pass `"$clock_range"` for a clock-only font. Then declare the font in `src/fonts/fonts.h`.
+- **Fonts:** add a `font` line. Grift files are in `design/fonts/`; pass `"$clock_range"` for a clock-only font. Then declare the font in `src/fonts/fonts.h`. A font for track text (titles, artists) should be a `text_font` line instead: that links the Noto fallback for Greek, Cyrillic, Japanese kana and so on, which costs about 45 KB per size.
 - **Images:** export from Figma at 1× (or larger; the script resizes), put the PNG in `design/assets/`, and add a `png_to_lvgl.py` line using `rgb565` or `a8`. Then declare the image in `src/assets/assets.h`.
 
 Run `tools/gen_assets.sh` (needs node, `rsvg-convert` from librsvg, and macOS `sips`). Don't edit the generated files by hand.
