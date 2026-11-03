@@ -1,4 +1,4 @@
-# Now Playing Brickman
+# Spotify Lego Player
 
 A little "now playing" display and remote for Spotify, built on the ESP32 "Cheap Yellow Display". It shows the song, artist, album art and progress, with play/pause, next and previous buttons. When nobody touches it for a while, it switches to a themed clock. Tap the moon in the top-right corner to turn the screen off; touch it anywhere to wake it. A new theme arrives every month, delivered over Wi-Fi.
 
@@ -63,4 +63,4 @@ Copy `include/secrets.example.h` to `include/secrets.h` to give a development bo
 
 ## Credits
 
-UI font: Grift, used with the permission of its designer. Fallback fonts for other scripts: [Noto Sans and Noto Sans JP](https://notofonts.github.io) (SIL Open Font License). Display drivers: [TFT_eSPI](https://github.com/Bodmer/TFT_eSPI) and [LVGL](https://lvgl.io). Album art decoding: [JPEGDEC](https://github.com/bitbank2/JPEGDEC).
+UI font: Grift. Fallback fonts for other scripts: [Noto Sans and Noto Sans JP](https://notofonts.github.io) (SIL Open Font License). Display drivers: [TFT_eSPI](https://github.com/Bodmer/TFT_eSPI) and [LVGL](https://lvgl.io). Album art decoding: [JPEGDEC](https://github.com/bitbank2/JPEGDEC).
