@@ -11,12 +11,13 @@ namespace ui {
 namespace {
 
 constexpr uint32_t kIdleTimeoutMs = 10000;
-constexpr uint8_t kScreensaverBrightness = 40;
+constexpr uint8_t kScreensaverBrightness = 64;  // 25% backlight power
 constexpr uint32_t kDimFadeMs = 800;
 constexpr uint32_t kWakeFadeMs = 150;
 
 lv_obj_t* now_playing = nullptr;
 lv_obj_t* screensaver = nullptr;
+lv_obj_t* asleep = nullptr;  // blank, with the backlight off, until touched
 lv_obj_t* picker = nullptr;  // only exists while open
 lv_obj_t* setup = nullptr;  // only exists while the setup network is up
 lv_obj_t* updating = nullptr;  // only exists while an update installs
@@ -29,8 +30,26 @@ void wake() {
   backlight::fadeTo(backlight::kFull, kWakeFadeMs);
 }
 
+// Turns the screen off until it's touched; that touch never reaches Now Playing.
+void sleep() {
+  if (!asleep) {
+    asleep = lv_obj_create(nullptr);
+    lv_obj_set_style_bg_color(asleep, lv_color_black(), 0);
+    lv_obj_remove_flag(asleep, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_event_cb(
+        asleep,
+        [](lv_event_t*) {
+          lv_indev_wait_release(lv_indev_active());
+          wake();
+        },
+        LV_EVENT_PRESSED, nullptr);
+  }
+  lv_screen_load(asleep);
+  backlight::fadeTo(0, kDimFadeMs);
+}
+
 void buildScreens() {
-  now_playing = createNowPlaying(openPicker);
+  now_playing = createNowPlaying(openPicker, sleep);
   screensaver = createScreensaver(wake);
 }
 

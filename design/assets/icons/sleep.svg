@@ -1,0 +1,4 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<defs><mask id="bite"><rect width="32" height="32" fill="white"/><circle cx="22" cy="10" r="9" fill="black"/></mask></defs>
+<circle cx="15" cy="17" r="12" fill="white" mask="url(#bite)"/>
+</svg>

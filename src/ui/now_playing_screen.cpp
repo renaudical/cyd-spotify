@@ -16,6 +16,9 @@ constexpr int32_t kBarX = 12, kBarY = 146, kBarW = 296, kBarH = 4;
 constexpr int32_t kButtonY = 172, kButtonSize = 44;
 constexpr int32_t kButtonX[] = {24, 138, 252};
 constexpr int32_t kBarRange = 1000;
+// Sleep button: the moon sits in the top margin, its right edge in line with the 16px page margin;
+// its touch area is bigger than the moon.
+constexpr int32_t kSleepW = 48, kSleepH = 22, kSleepX = 320 - 4 - kSleepW, kSleepIconInset = 12;
 
 struct NowPlayingUi {
   lv_obj_t* art;
@@ -31,6 +34,7 @@ NowPlayingUi ui_ = {};
 
 constexpr uint32_t kHoldMs = 2000;
 void (*hold_cb)() = nullptr;
+void (*sleep_cb)() = nullptr;
 
 constexpr char kEllipsis[] = "\xe2\x80\xa6";  // U+2026
 
@@ -204,8 +208,9 @@ void onArtTouch(lv_event_t* e) {
 
 }  // namespace
 
-lv_obj_t* createNowPlaying(void (*on_hold)()) {
+lv_obj_t* createNowPlaying(void (*on_hold)(), void (*on_sleep)()) {
   hold_cb = on_hold;
+  sleep_cb = on_sleep;
   const Theme& th = theme::active();
 
   lv_obj_t* scr = lv_obj_create(nullptr);
@@ -257,6 +262,20 @@ lv_obj_t* createNowPlaying(void (*on_hold)()) {
   makeButton(scr, kButtonX[0], &icon_prev, player::previous);
   makeButton(scr, kButtonX[1], &icon_play_pause, player::togglePlayPause);
   makeButton(scr, kButtonX[2], &icon_next, player::next);
+
+  lv_obj_t* sleep = lv_button_create(scr);
+  lv_obj_remove_style_all(sleep);
+  lv_obj_set_pos(sleep, kSleepX, 0);
+  lv_obj_set_size(sleep, kSleepW, kSleepH);
+  lv_obj_add_event_cb(sleep, [](lv_event_t*) { sleep_cb(); }, LV_EVENT_CLICKED, nullptr);
+  lv_obj_t* moon = lv_image_create(sleep);
+  lv_image_set_src(moon, &icon_sleep);
+  lv_obj_set_style_image_recolor(moon, th.icon, 0);
+  lv_obj_set_style_image_recolor_opa(moon, LV_OPA_COVER, 0);
+  lv_obj_set_style_opa(moon, LV_OPA_60, 0);  // quieter than the player buttons
+  lv_obj_set_style_opa(moon, LV_OPA_COVER, LV_STATE_PRESSED);
+  lv_obj_add_flag(moon, LV_OBJ_FLAG_EVENT_BUBBLE);
+  lv_obj_align(moon, LV_ALIGN_RIGHT_MID, -kSleepIconInset, 0);
 
   ui_.shown_version = player::state().version - 1;
   refresh(nullptr);

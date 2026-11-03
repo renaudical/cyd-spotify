@@ -6,6 +6,7 @@
 LV_IMAGE_DECLARE(icon_prev);
 LV_IMAGE_DECLARE(icon_play_pause);
 LV_IMAGE_DECLARE(icon_next);
+LV_IMAGE_DECLARE(icon_sleep);  // 18x18
 
 // Stage-1 fake track art (100x100 RGB565), from img/guaraldi.jpeg.
 LV_IMAGE_DECLARE(demo_art_guaraldi);

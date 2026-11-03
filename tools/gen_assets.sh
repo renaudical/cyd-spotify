@@ -51,6 +51,8 @@ for icon in prev play_pause next; do
   rsvg-convert -w 32 -h 32 "design/assets/icons/$icon.svg" -o "$tmp/$icon.png"
   python3 -I tools/png_to_lvgl.py "$tmp/$icon.png" a8 "icon_$icon" > "src/assets/icon_$icon.c"
 done
+rsvg-convert -w 18 -h 18 design/assets/icons/sleep.svg -o "$tmp/sleep.png"
+python3 -I tools/png_to_lvgl.py "$tmp/sleep.png" a8 icon_sleep > src/assets/icon_sleep.c
 
 # Stage-1 demo album art, pre-scaled to the 100x100 art box.
 sips -s format png -z 100 100 img/guaraldi.jpeg --out "$tmp/guaraldi.png" > /dev/null

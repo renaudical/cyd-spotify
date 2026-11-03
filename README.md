@@ -1,6 +1,6 @@
 # Now Playing Brickman
 
-A little "now playing" display and remote for Spotify, built on the ESP32 "Cheap Yellow Display". It shows the song, artist, album art and progress, with play/pause, next and previous buttons. When nobody touches it for a while, it switches to a themed clock. A new theme arrives every month, delivered over Wi-Fi.
+A little "now playing" display and remote for Spotify, built on the ESP32 "Cheap Yellow Display". It shows the song, artist, album art and progress, with play/pause, next and previous buttons. When nobody touches it for a while, it switches to a themed clock. Tap the moon in the top-right corner to turn the screen off; touch it anywhere to wake it. A new theme arrives every month, delivered over Wi-Fi.
 
 ## What you need
 
