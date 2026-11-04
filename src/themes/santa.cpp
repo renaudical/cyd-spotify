@@ -11,7 +11,8 @@ lv_obj_t* shape(lv_obj_t* parent, int32_t x, int32_t y, int32_t w, int32_t h) {
   return obj;
 }
 
-// Belt and buckle with the time inside, from the Figma "Clock - Holiday" frame.
+// Belt and buckle with the time inside, from the Figma "Clock - Holiday" frame, but centered on the
+// screen (Figma has the buckle 8px and the time 12px right of center).
 lv_obj_t* buildScreensaver(lv_obj_t* screen) {
   lv_obj_set_style_bg_color(screen, lv_color_hex(coat_red), 0);
 
@@ -19,17 +20,17 @@ lv_obj_t* buildScreensaver(lv_obj_t* screen) {
   lv_obj_set_style_bg_color(belt, lv_color_hex(belt_black), 0);
   lv_obj_set_style_bg_opa(belt, LV_OPA_COVER, 0);
 
-  lv_obj_t* buckle = shape(screen, 78, 30, 180, 180);
+  lv_obj_t* buckle = shape(screen, 70, 30, 180, 180);
   lv_obj_set_style_border_color(buckle, lv_color_hex(buckle_gold), 0);
   lv_obj_set_style_border_width(buckle, 24, 0);
   lv_obj_set_style_border_opa(buckle, LV_OPA_COVER, 0);
   lv_obj_set_style_radius(buckle, 8, 0);
 
-  // Figma centers the text at x 172 in a 33px box at y 100. The clock font only has caps and digits,
-  // so its line is 18px; y 107 keeps the glyphs where Figma draws them.
+  // Figma's text is a 33px box at y 100. The clock font only has caps and digits, so its line is 18px;
+  // y 107 keeps the glyphs where Figma draws them.
   lv_obj_t* time = lv_label_create(screen);
-  lv_obj_set_pos(time, 24, 107);
-  lv_obj_set_width(time, 296);
+  lv_obj_set_pos(time, 0, 107);
+  lv_obj_set_width(time, 320);
   lv_obj_set_style_text_align(time, LV_TEXT_ALIGN_CENTER, 0);
   lv_obj_set_style_text_font(time, font_clock, 0);
   lv_obj_set_style_text_color(time, lv_color_hex(buckle_gold), 0);

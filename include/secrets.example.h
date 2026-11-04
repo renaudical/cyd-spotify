@@ -6,8 +6,10 @@
 
 #define WIFI_SSID "your-network"
 #define WIFI_PASSWORD "your-password"
-// Optional: the WiiM's address. Leave it out and the device finds the WiiM on the network itself.
-// #define WIIM_HOST "192.168.1.50"
+// Optional: which WiiM, by its network name (as the settings page lists it) or address. Leave it out
+// and the device uses the first WiiM it finds on the network. A name keeps working when the router
+// gives the WiiM a new address.
+// #define WIIM_HOST "WiiM-Mini-1A2B"
 // Optional: POSIX TZ string for the screensaver clock, e.g. US Central below. Leave it out and the
 // device detects its timezone from its public IP address (wrong behind a VPN).
 // #define TIMEZONE "CST6CDT,M3.2.0,M11.1.0"

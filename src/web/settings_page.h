@@ -179,8 +179,11 @@ async function loadWiims(current) {
   const sel = $("wiim");
   try {
     const list = await (await fetch("/api/wiims")).json();
-    for (const d of list) sel.append(option(d.ip, `${d.name} (${d.ip})`));
-    if (current && !list.some(d => d.ip === current)) sel.append(option(current, current));
+    // Saved by name, so the display still finds it when the router gives it a new address.
+    for (const d of list) sel.append(option(d.name, `${d.name} (${d.ip})`));
+    const match = list.find(d => d.ip === current);  // saved by address before names were
+    if (match) current = match.name;
+    else if (current && !list.some(d => d.name === current)) sel.append(option(current, current));
   } catch {}
   sel.append(option(OTHER, "Enter an address…"));
   sel.value = current;

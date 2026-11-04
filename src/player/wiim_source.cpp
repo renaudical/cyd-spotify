@@ -73,8 +73,15 @@ class WiimSource : public Source {
  private:
   void start() {
     started_ = true;
-    host_ = settings::wiimHost();
-    auto_host_ = host_.isEmpty();
+    // The setting is empty (the first WiiM found), a WiiM's mDNS name (what the settings page's list
+    // saves, since routers hand out new addresses), or an address someone typed.
+    String setting = settings::wiimHost();
+    if (setting.indexOf('.') < 0) {
+      name_ = setting;
+    } else {
+      fixed_host_ = setting;
+      host_ = setting;
+    }
     tls_.setInsecure();  // the WiiM only speaks HTTPS, with a self-signed certificate
     tls_.setHandshakeTimeout(kTimeoutMs / 1000);
     http_.setReuse(true);
@@ -98,7 +105,7 @@ class WiimSource : public Source {
   }
 
   Result failed() {
-    if (++failures_ >= kFailuresBeforeRediscover && auto_host_) host_ = "";
+    if (++failures_ >= kFailuresBeforeRediscover) host_ = "";
     return Result::kFailed;
   }
 
@@ -109,23 +116,35 @@ class WiimSource : public Source {
     return Status::kStopped;
   }
 
-  // Picks the first WiiM on the network; false if there's none.
+  // Looks for the WiiM on the network: the one named in the settings, else the first one found. A typed
+  // address that stopped answering is swapped for the WiiM on the network only if there's exactly one
+  // (it most likely got a new address), otherwise it's tried again. False if there's nothing to try.
   bool findHost() {
     std::vector<wiim::Device> found = wiim::discover();
-    if (found.empty()) {
-      Serial.println("wiim: none found on the network");
+    const wiim::Device* pick = nullptr;
+    for (const wiim::Device& d : found) {
+      if (!name_.isEmpty() && d.name.equalsIgnoreCase(name_)) pick = &d;
+    }
+    if (name_.isEmpty() && !found.empty() && (fixed_host_.isEmpty() || found.size() == 1)) pick = &found[0];
+    failures_ = 0;
+    disconnect();  // any open connection is to the old address
+    if (pick) {
+      host_ = pick->ip;
+      Serial.printf("wiim: found %s at %s\n", pick->name.c_str(), host_.c_str());
+      return true;
+    }
+    host_ = fixed_host_;
+    if (host_.isEmpty()) {
+      Serial.printf("wiim: %s not found on the network\n", name_.isEmpty() ? "none" : name_.c_str());
       return false;
     }
-    host_ = found[0].ip;
-    failures_ = 0;
-    Serial.printf("wiim: found %s at %s\n", found[0].name.c_str(), host_.c_str());
-    disconnect();  // any open connection is to the old address
     return true;
   }
 
   bool started_ = false;
-  String host_;  // from settings, or found on the network when that's empty
-  bool auto_host_ = true;
+  String host_;        // the address in use; empty until found
+  String name_;        // the WiiM to find by name, or empty for the first one (when fixed_host_ is empty)
+  String fixed_host_;  // an address typed into the settings
   int failures_ = 0;
   String last_art_;
   WiFiClientSecure tls_;
