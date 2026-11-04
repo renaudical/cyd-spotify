@@ -46,7 +46,11 @@
       border-radius: 12px;
       padding: 24px;
     }
-    .hero { display: block; width: 100%; height: auto; border-radius: 12px; margin: 0 0 32px; background: #000; }
+    /* Photos stacked on each other; the script fades the next one in every 5 seconds. */
+    .slideshow { position: relative; aspect-ratio: 4 / 3; border-radius: 12px; overflow: hidden; margin: 0 0 32px; background: #000; }
+    .slideshow img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 1.2s ease-in-out; }
+    .slideshow img.active { opacity: 1; }
+    @media (prefers-reduced-motion: reduce) { .slideshow img { transition: none; } }
     .install { text-align: center; }
     .install p { color: var(--muted); margin: 12px 0 0; font-size: 0.95rem; }
     esp-web-install-button { --esp-tools-button-color: var(--accent); --esp-tools-button-text-color: var(--accent-text); }
@@ -65,8 +69,16 @@
     screensaver and a new theme every month with a matching 900% Lego style character</p>
   <p class="lede"><a href="https://ark-stem.com/ideas/00e86a1f-8eff-43e6-9c98-dc63d89b5c37">This project is hosted exclusively on Ark</a>. Download any or all of the 3D print files for characters totally free with detailed instructions and parts list.</p>
 
-  <img class="hero" src="images/santa.jpg" width="1200" height="780"
-    alt="The Santa build taken apart: a red brick-figure body with the display in its chest, showing a song with album art and playback controls">
+  <div class="slideshow">
+    <img class="active" src="images/santa-doom-clocks.jpg" width="1200" height="900"
+      alt="The Santa and MF DOOM figures side by side, each with the display in its chest showing its clock screensaver">
+    <img src="images/doom-santa-playing.jpg" width="1200" height="900"
+      alt="The MF DOOM and Santa figures on a workbench, each display showing a song with album art and playback controls">
+    <img src="images/doom-clock.jpg" width="1200" height="900"
+      alt="The MF DOOM figure, its display showing the MF DOOM tag and the time">
+    <img src="images/santa-clock.jpg" width="1200" height="900"
+      alt="The Santa figure, its display showing the time inside a gold belt buckle">
+  </div>
 
   <div class="card install">
     <esp-web-install-button manifest="manifest.json">
@@ -101,5 +113,16 @@
     <a href="https://github.com/renaudical/cyd-spotify">Source on GitHub</a> |  <a href="https://ark-stem.com/ideas/00e86a1f-8eff-43e6-9c98-dc63d89b5c37">Back to the full project on ARK.</a>
   </footer>
 </main>
+<script>
+  // Fades to the next photo every 5 seconds, looping; waits while the tab is in the background.
+  const slides = document.querySelectorAll(".slideshow img");
+  let current = 0;
+  setInterval(() => {
+    if (document.hidden) return;
+    slides[current].classList.remove("active");
+    current = (current + 1) % slides.length;
+    slides[current].classList.add("active");
+  }, 5000);
+</script>
 </body>
 </html>
