@@ -23,7 +23,7 @@ You can also skip Wi-Fi in the installer. The display then shows a QR code: scan
 
 Everything else is set on the display's own web page. Hold the album art for 2 seconds: the theme picker opens, and its bottom line shows the display's address (for example `192.168.1.23`). Open that address in a browser on the same network, or use `http://brickman-xxxx.local`.
 
-The page sets Wi-Fi, the music source, the clock's time zone (detected automatically, but you can pick one), rotates the screen 180° if you use the board without the case, and restarts the display.
+The page sets Wi-Fi, the music source, the clock's time zone (detected automatically, but you can pick one), rotates the screen 180° if you use the board without the case, switches the screensaver from the character's clock (the default) to full-screen album art while music plays, and restarts the display.
 
 ## Where the music comes from
 
@@ -49,7 +49,7 @@ Choose WiiM on the settings page. The display finds the streamer on your network
 
 ## Themes and updates
 
-Hold the album art for 2 seconds to pick a theme. When a new version comes out, the display installs it on its own while it's showing the clock, and restarts. New themes appear in the picker; your choice never changes by itself.
+Hold the album art for 2 seconds to pick a theme. The Album Art theme has no character: a black player screen, and the album art as its screensaver, with dust in the art's colors drifting beside it. When a new version comes out, the display installs it on its own while it's showing the clock, and restarts. New themes appear in the picker; your choice never changes by itself.
 
 ## Building it yourself
 
