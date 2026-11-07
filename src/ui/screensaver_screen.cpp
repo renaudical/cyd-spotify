@@ -1,3 +1,5 @@
+#include <algorithm>
+#include <math.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
@@ -58,6 +60,162 @@ lv_obj_t* createScreensaver(void (*on_wake)()) {
   }
   lv_obj_add_event_cb(scr, onPressed, LV_EVENT_PRESSED, nullptr);
   return scr;
+}
+
+// The album art screensaver: black, with the art drawn full height in the middle by the player, and
+// dust in the art's colors drifting in the strips either side. Each mote moves in screen coordinates
+// and has a circle in each strip, so it slides behind the art and out the other side. The strips
+// clip their circles, which also keeps LVGL from ever repainting the art, since the player draws it
+// outside LVGL.
+namespace {
+
+constexpr int kMotes = 18;
+constexpr uint32_t kFrameMs = 50;
+constexpr float kMaxSpeed = 9;     // px/s
+constexpr float kWander = 6;       // px/s^2 of random push
+constexpr float kPulse = 0.3f;     // how much each mote grows and shrinks, as a fraction of its size
+
+struct Mote {
+  float x, y, vx, vy;  // screen coordinates, px/s
+  float radius;
+  float phase, pulse_rate;  // radians, radians/s
+  lv_obj_t* circles[2];     // one per strip
+};
+
+struct Dust {
+  lv_obj_t* strips[2];
+  int32_t strip_x[2], strip_w;
+  int32_t width, height;
+  Mote motes[kMotes];
+  lv_timer_t* timer;
+  uint32_t last_ms;
+};
+
+float between(float lo, float hi) { return lo + (hi - lo) * lv_rand(0, 10000) / 10000.0f; }
+
+// Anywhere on the screen at first (some start behind the art); later just off a random edge.
+void spawn(Dust& d, Mote& m, bool anywhere) {
+  m.radius = between(2, 11);
+  float margin = m.radius * (1 + kPulse) + 1;
+  if (anywhere) {
+    m.x = between(0, d.width);
+    m.y = between(0, d.height);
+  } else if (lv_rand(0, 1)) {
+    m.x = between(0, d.width);
+    m.y = lv_rand(0, 1) ? -margin : d.height + margin;
+  } else {
+    m.x = lv_rand(0, 1) ? -margin : d.width + margin;
+    m.y = between(0, d.height);
+  }
+  // Drift in from wherever it starts.
+  m.vx = between(-kMaxSpeed, kMaxSpeed) / 2 + (m.x < 0 ? 4 : m.x > d.width ? -4 : 0);
+  m.vy = between(-kMaxSpeed, kMaxSpeed) / 2 + (m.y < 0 ? 4 : m.y > d.height ? -4 : 0);
+  m.phase = between(0, 6.283f);
+  m.pulse_rate = between(0.5f, 1.6f);
+  lv_opa_t opa = lv_rand(LV_OPA_30, LV_OPA_80);
+  for (lv_obj_t* c : m.circles) lv_obj_set_style_bg_opa(c, opa, 0);
+}
+
+void place(Dust& d, Mote& m) {
+  float r = m.radius * (1 + kPulse * sinf(m.phase));
+  int32_t size = std::max(2L, lroundf(2 * r));
+  int32_t left = lroundf(m.x - r), top = lroundf(m.y - r);
+  for (int s = 0; s < 2; s++) {
+    lv_obj_t* c = m.circles[s];
+    int32_t x0 = d.strip_x[s], x1 = x0 + d.strip_w;
+    if (left + size <= x0 || left >= x1) {  // nowhere near this strip
+      lv_obj_add_flag(c, LV_OBJ_FLAG_HIDDEN);
+      continue;
+    }
+    lv_obj_remove_flag(c, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_pos(c, left - x0, top);
+    lv_obj_set_size(c, size, size);
+  }
+}
+
+void onFrame(lv_timer_t* timer) {
+  Dust& d = *static_cast<Dust*>(lv_timer_get_user_data(timer));
+  uint32_t now = lv_tick_get();
+  float dt = std::min<uint32_t>(now - d.last_ms, 200) / 1000.0f;
+  d.last_ms = now;
+  for (Mote& m : d.motes) {
+    m.vx += between(-kWander, kWander) * dt;
+    m.vy += between(-kWander, kWander) * dt;
+    float speed = sqrtf(m.vx * m.vx + m.vy * m.vy);
+    if (speed > kMaxSpeed) m.vx *= kMaxSpeed / speed, m.vy *= kMaxSpeed / speed;
+    m.x += m.vx * dt;
+    m.y += m.vy * dt;
+    m.phase += m.pulse_rate * dt;
+    float margin = m.radius * (1 + kPulse) + 2;
+    if (m.x < -margin || m.x > d.width + margin || m.y < -margin || m.y > d.height + margin) spawn(d, m, false);
+    place(d, m);
+  }
+}
+
+// Only animates while it's showing.
+void onLoaded(lv_event_t* e) {
+  Dust& d = *static_cast<Dust*>(lv_event_get_user_data(e));
+  d.last_ms = lv_tick_get();
+  lv_timer_resume(d.timer);
+}
+void onUnloaded(lv_event_t* e) { lv_timer_pause(static_cast<Dust*>(lv_event_get_user_data(e))->timer); }
+void onDeleteDust(lv_event_t* e) {
+  Dust* d = static_cast<Dust*>(lv_event_get_user_data(e));
+  lv_timer_delete(d->timer);
+  delete d;
+}
+
+}  // namespace
+
+lv_obj_t* createArtScreensaver(void (*on_wake)()) {
+  wake_cb = on_wake;
+  lv_obj_t* scr = lv_obj_create(nullptr);
+  lv_obj_remove_flag(scr, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_set_style_bg_color(scr, lv_color_black(), 0);
+
+  Dust* d = new Dust();
+  d->width = lv_display_get_horizontal_resolution(nullptr);
+  d->height = lv_display_get_vertical_resolution(nullptr);
+  int32_t strip_w = d->strip_w = (d->width - d->height) / 2;  // the art is a full-height square
+  for (int s = 0; s < 2; s++) {
+    lv_obj_t* strip = lv_obj_create(scr);
+    lv_obj_remove_style_all(strip);
+    lv_obj_remove_flag(strip, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_remove_flag(strip, LV_OBJ_FLAG_CLICKABLE);
+    d->strip_x[s] = s == 0 ? 0 : d->width - strip_w;
+    lv_obj_set_pos(strip, d->strip_x[s], 0);
+    lv_obj_set_size(strip, strip_w, d->height);
+    d->strips[s] = strip;
+  }
+  for (int i = 0; i < kMotes; i++) {
+    Mote& m = d->motes[i];
+    for (int s = 0; s < 2; s++) {
+      lv_obj_t* c = lv_obj_create(d->strips[s]);
+      lv_obj_remove_style_all(c);
+      lv_obj_remove_flag(c, LV_OBJ_FLAG_CLICKABLE);
+      lv_obj_set_style_radius(c, LV_RADIUS_CIRCLE, 0);
+      lv_obj_set_style_bg_color(c, lv_color_white(), 0);
+      m.circles[s] = c;
+    }
+    spawn(*d, m, true);
+    place(*d, m);
+  }
+  lv_obj_set_user_data(scr, d);
+
+  d->timer = lv_timer_create(onFrame, kFrameMs, d);
+  lv_timer_pause(d->timer);
+  lv_obj_add_event_cb(scr, onLoaded, LV_EVENT_SCREEN_LOADED, d);
+  lv_obj_add_event_cb(scr, onUnloaded, LV_EVENT_SCREEN_UNLOADED, d);
+  lv_obj_add_event_cb(scr, onDeleteDust, LV_EVENT_DELETE, d);
+  lv_obj_add_event_cb(scr, onPressed, LV_EVENT_PRESSED, nullptr);
+  return scr;
+}
+
+void setArtScreensaverColors(lv_obj_t* screen, const lv_color_t colors[4]) {
+  Dust& d = *static_cast<Dust*>(lv_obj_get_user_data(screen));
+  for (int i = 0; i < kMotes; i++) {
+    for (lv_obj_t* c : d.motes[i].circles) lv_obj_set_style_bg_color(c, colors[i % 4], 0);
+  }
 }
 
 }  // namespace ui

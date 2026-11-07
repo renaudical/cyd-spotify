@@ -43,6 +43,11 @@ void setTimezone(const String& posix);
 bool flipScreen();
 void setFlipScreen(bool flip);
 
+// The screensaver shows the album art full screen while music plays, instead of the character's clock
+// (which still shows when nothing plays). Off by default.
+bool artScreensaver();
+void setArtScreensaver(bool art);
+
 // Short id from the MAC address, e.g. "1a2b": names the setup network ("Brickman-1A2B") and the
 // mDNS hostname ("brickman-1a2b.local") so several displays on one network don't collide.
 const char* deviceId();

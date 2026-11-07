@@ -34,6 +34,10 @@ struct Theme {
   // Draws the character's clock screensaver onto an empty screen (art may bleed to the edges) and
   // returns the label the screensaver writes the time into.
   lv_obj_t* (*build_screensaver)(lv_obj_t* screen);
+
+  // Always use the album art screensaver while music plays, whatever settings::artScreensaver() says;
+  // build_screensaver is then only for when nothing plays.
+  bool art_screensaver;
 };
 
 namespace theme {

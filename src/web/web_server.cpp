@@ -48,6 +48,7 @@ void handleStatus() {
   doc["timezone"] = settings::timezone();
   doc["timezone_detected"] = tz::detectedName();
   doc["flip_screen"] = settings::flipScreen();
+  doc["art_screensaver"] = settings::artScreensaver();
   sendJson(doc);
 }
 
@@ -126,6 +127,7 @@ void handleSaveSettings() {
     settings::setTimezone(zone);
   }
   if (server.hasArg("flip_screen")) settings::setFlipScreen(server.arg("flip_screen") == "1");
+  if (server.hasArg("art_screensaver")) settings::setArtScreensaver(server.arg("art_screensaver") == "1");
   server.send(200, "text/plain", "ok");
   restartSoon();
 }

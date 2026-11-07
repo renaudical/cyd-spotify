@@ -14,6 +14,10 @@ void begin();
 lv_obj_t* createNowPlaying(void (*on_hold)(), void (*on_sleep)());
 // `on_wake` runs when the screensaver is touched; that touch never reaches the next screen.
 lv_obj_t* createScreensaver(void (*on_wake)());
+// The album art screensaver: black, with dust drifting either side of the art, which the player draws.
+lv_obj_t* createArtScreensaver(void (*on_wake)());
+// Colors the dust; four colors from the art.
+void setArtScreensaverColors(lv_obj_t* screen, const lv_color_t colors[4]);
 // Lists the themes. Both callbacks run outside the screen's event handlers, so they may delete it.
 lv_obj_t* createThemePicker(void (*on_pick)(size_t index), void (*on_close)());
 

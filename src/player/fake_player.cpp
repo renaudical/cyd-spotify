@@ -100,6 +100,8 @@ void next() { load((index + 1) % kTrackCount); }
 
 void previous() { load((index + kTrackCount - 1) % kTrackCount); }
 
+void showFullScreenArt(bool) {}  // the demo art is only 100px, so the screensaver shows its backdrop
+
 
 }  // namespace player
 

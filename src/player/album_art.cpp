@@ -71,46 +71,50 @@ int32_t seekFile(JPEGFILE* f, int32_t pos) {
   return pos;
 }
 
-// Scales the decoded image down to the output while it decodes, so the full-size picture is never in
-// RAM: the decoder fills one band of rows at a time, and each finished row is averaged into the output
-// row it belongs to. The image is cropped to a centered square first. Decoding runs only on the
-// network task, so this lives in a file-static.
+// Scales the decoded image to the output size while it decodes, so the full-size picture is never in
+// RAM: the decoder fills one band of rows at a time, each finished row is averaged into the output row
+// it belongs to, and each finished output row goes to the sink. The image is cropped to a centered
+// square first. Decoding runs only on the network task, so this lives in a file-static.
 struct Scaler {
-  uint16_t* out;
+  int size;  // output side
+  RowSink sink;
+  void* context;
   int w, h;          // decoded image size
   int side, x0, y0;  // centered square crop
   uint16_t* band;    // kMaxBandRows full-width rows from the decoder
   int band_y, band_rows;
-  int next_row;  // next output row to finish
-  uint16_t sums[kSize][4];  // r, g, b, count for the output row being built
+  int next_row;    // next output row to finish
+  uint16_t* sums;  // r, g, b, count per pixel of the output row being built
+  uint16_t* row;   // the finished output row
 };
 constexpr int kMaxBandRows = 16;  // the tallest JPEG MCU
 Scaler sc;
 
-int spanStart(int i, int origin) { return origin + i * sc.side / kSize; }
-int spanEnd(int i, int origin) { return max(spanStart(i, origin) + 1, origin + (i + 1) * sc.side / kSize); }
+int spanStart(int i, int origin) { return origin + i * sc.side / sc.size; }
+int spanEnd(int i, int origin) { return max(spanStart(i, origin) + 1, origin + (i + 1) * sc.side / sc.size); }
 
 void addRow(const uint16_t* row, int y) {
-  while (sc.next_row < kSize) {
+  while (sc.next_row < sc.size) {
     int y0 = spanStart(sc.next_row, sc.y0), y1 = spanEnd(sc.next_row, sc.y0);
     if (y < y0) return;  // cropped off, or before this output row
-    for (int x = 0; x < kSize; x++) {
+    for (int x = 0; x < sc.size; x++) {
+      uint16_t* s = sc.sums + x * 4;
       for (int sx = spanStart(x, sc.x0); sx < spanEnd(x, sc.x0); sx++) {
         uint16_t p = row[sx];
-        sc.sums[x][0] += p >> 11;
-        sc.sums[x][1] += p >> 5 & 0x3F;
-        sc.sums[x][2] += p & 0x1F;
-        sc.sums[x][3]++;
+        s[0] += p >> 11;
+        s[1] += p >> 5 & 0x3F;
+        s[2] += p & 0x1F;
+        s[3]++;
       }
     }
     if (y + 1 < y1) return;  // this output row needs more input rows
 
-    uint16_t* dst = sc.out + sc.next_row * kSize;
-    for (int x = 0; x < kSize; x++) {
-      uint16_t* s = sc.sums[x];
-      dst[x] = (s[0] / s[3]) << 11 | (s[1] / s[3]) << 5 | (s[2] / s[3]);
+    for (int x = 0; x < sc.size; x++) {
+      uint16_t* s = sc.sums + x * 4;
+      sc.row[x] = (s[0] / s[3]) << 11 | (s[1] / s[3]) << 5 | (s[2] / s[3]);
     }
-    memset(sc.sums, 0, sizeof(sc.sums));
+    sc.sink(sc.next_row, sc.row, sc.context);
+    memset(sc.sums, 0, sc.size * 4 * sizeof(uint16_t));
     sc.next_row++;  // when enlarging, the same input row also feeds the next output row
   }
 }
@@ -134,7 +138,15 @@ int draw(JPEGDRAW* d) {
   return 1;
 }
 
-bool decode(uint16_t* out) {
+void copyRow(int y, const uint16_t* pixels, void* out) {
+  memcpy(static_cast<uint16_t*>(out) + y * kSize, pixels, kSize * sizeof(uint16_t));
+}
+
+}  // namespace
+
+bool fetch(const char* url, uint16_t* out) { return mountFilesystem() && download(url) && decode(kSize, copyRow, out); }
+
+bool decode(int size, RowSink row, void* context) {
   std::unique_ptr<JPEGDEC> jpeg(new (std::nothrow) JPEGDEC);  // ~17 KB, too big for the task stack
   if (!jpeg) {
     Serial.println("art: no memory for the JPEG decoder");
@@ -148,40 +160,42 @@ bool decode(uint16_t* out) {
   }
   jpeg->setPixelType(RGB565_LITTLE_ENDIAN);
 
-  // Decode at the smallest of 1/1, 1/2, 1/4, 1/8 that still covers kSize. Progressive JPEGs only
+  // Decode at the smallest of 1/1, 1/2, 1/4, 1/8 that still covers the output. Progressive JPEGs only
   // decode at 1/8 in JPEGDEC.
   static const int kScale[] = {0, JPEG_SCALE_HALF, JPEG_SCALE_QUARTER, JPEG_SCALE_EIGHTH};
   int w = jpeg->getWidth(), h = jpeg->getHeight();
   int shift = 0;
-  while (shift < 3 && min(w, h) >> (shift + 1) >= kSize) shift++;
+  while (shift < 3 && min(w, h) >> (shift + 1) >= size) shift++;
   if (jpeg->getJPEGType() == JPEG_MODE_PROGRESSIVE) shift = 3;
 
   sc = {};
-  sc.out = out;
+  sc.size = size;
+  sc.sink = row;
+  sc.context = context;
   sc.w = (w + (1 << shift) - 1) >> shift;
   sc.h = (h + (1 << shift) - 1) >> shift;
   sc.side = min(sc.w, sc.h);
   sc.x0 = (sc.w - sc.side) / 2;
   sc.y0 = (sc.h - sc.side) / 2;
-  sc.band = static_cast<uint16_t*>(malloc(sc.w * kMaxBandRows * sizeof(uint16_t)));
+  // One allocation for the band, the row sums and the output row: ~12 KB for full-screen art.
+  sc.band = static_cast<uint16_t*>(malloc((sc.w * kMaxBandRows + size * 5) * sizeof(uint16_t)));
   if (!sc.band) {
     Serial.printf("art: no memory to decode %dx%d\n", sc.w, sc.h);
     jpeg->close();
     return false;
   }
+  sc.sums = sc.band + sc.w * kMaxBandRows;
+  sc.row = sc.sums + size * 4;
+  memset(sc.sums, 0, size * 4 * sizeof(uint16_t));
 
   bool ok = jpeg->decode(0, 0, kScale[shift]);
   flushBand();
   jpeg->close();
-  ok = ok && sc.next_row == kSize;
+  ok = ok && sc.next_row == size;
   if (!ok) Serial.printf("art: decode failed (error %d)\n", jpeg->getLastError());
   free(sc.band);
   sc.band = nullptr;
   return ok;
 }
-
-}  // namespace
-
-bool fetch(const char* url, uint16_t* out) { return mountFilesystem() && download(url) && decode(out); }
 
 }  // namespace album_art

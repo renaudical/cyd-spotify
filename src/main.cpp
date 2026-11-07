@@ -4,6 +4,7 @@
 
 #include "backlight.h"
 #include "board.h"
+#include "display.h"
 #include "net/net.h"
 #include "settings/settings.h"
 #include "player/player.h"
@@ -34,6 +35,7 @@ void setup() {
   // Landscape, normally upside down to suit the case (settings::flipScreen()); touch follows, since LVGL
   // rotates the native-portrait touch points to match.
   lv_display_set_rotation(display, settings::flipScreen() ? LV_DISPLAY_ROTATION_270 : LV_DISPLAY_ROTATION_90);
+  display::begin(display);
 
   backlight::begin();
   touch::begin();
@@ -56,6 +58,8 @@ void setup() {
 }
 
 void loop() {
+  display::lock();  // the player task draws the album art screensaver straight onto the panel
   lv_timer_handler();
+  display::unlock();
   delay(5);
 }

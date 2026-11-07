@@ -6,6 +6,7 @@
 #include <esp_heap_caps.h>
 
 #include "album_art.h"
+#include "display.h"
 #include "net/net.h"
 #include "player.h"
 #include "settings/settings.h"
@@ -43,6 +44,8 @@ struct Shared {
   uint32_t art_seq;  // bumped whenever art changes
   bool art;          // the art buffer holds this track's art
   bool art_shown;    // the UI may be drawing the art buffer
+  bool full_art;          // the album art screensaver is showing, waiting for this task to draw the art
+  uint32_t full_art_seq;  // bumped each time the UI shows it, since LVGL has painted over the panel
 };
 Shared shared = {};
 SemaphoreHandle_t lock;
@@ -53,6 +56,9 @@ Source* source = nullptr;
 String art_url;
 int art_attempts = 0;       // failed downloads of art_url
 uint32_t art_retry_at = 0;  // millis() of the next attempt after a failure
+bool art_ready = false;     // the downloaded art file is art_url's
+uint32_t art_loads = 0;     // successful downloads, so a new track's art gets drawn full screen too
+uint32_t drawn_full_art_seq = 0, drawn_art_loads = 0;  // what's on the panel
 
 // Only touched by update() on the UI core.
 State current = {};
@@ -84,6 +90,7 @@ void updateArt() {
   if (url != art_url) {
     art_url = url;
     art_attempts = 0;
+    art_ready = false;
     publishArt(false);  // the old track's art is wrong now, even if the new one fails
   } else if (art_attempts == 0 || art_attempts >= kArtAttempts || (int32_t)(millis() - art_retry_at) < 0) {
     return;  // already showing it, given up on it, or waiting to retry
@@ -97,12 +104,46 @@ void updateArt() {
     Serial.printf("art: loaded in %u ms (free heap %u, largest block %u)\n", (unsigned)(millis() - started),
                   (unsigned)heap_caps_get_free_size(MALLOC_CAP_8BIT), (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
     art_attempts = 0;
+    art_ready = true;
+    art_loads++;
     publishArt(true);
   } else if (++art_attempts < kArtAttempts) {
     art_retry_at = millis() + kArtRetryMs;
   } else {
     Serial.println("art: giving up on this track");
   }
+}
+
+void pushArtRow(int, const uint16_t* pixels, void*) { display::push(pixels, album_art::kFullScreenSize); }
+
+// The album art screensaver's art is too big for RAM, so this decodes the art file again and streams
+// it straight to the panel, once per showing and per new art. Holding the display lock keeps LVGL
+// from drawing meanwhile, and the UI only switches screens inside LVGL, so the screen can't change.
+void drawFullScreenArt() {
+  xSemaphoreTake(lock, portMAX_DELAY);
+  bool wanted = shared.full_art;
+  uint32_t seq = shared.full_art_seq;
+  xSemaphoreGive(lock);
+  if (!wanted || !art_ready || (seq == drawn_full_art_seq && art_loads == drawn_art_loads)) return;
+  drawn_full_art_seq = seq;
+  drawn_art_loads = art_loads;  // one attempt each: a failure would fail the same way again
+
+  source->disconnect();  // the decoder needs the RAM a TLS session holds
+  uint32_t started = millis();
+  constexpr int kSide = album_art::kFullScreenSize;
+  display::lock();
+  xSemaphoreTake(lock, portMAX_DELAY);
+  wanted = shared.full_art && shared.full_art_seq == seq;
+  xSemaphoreGive(lock);
+  bool ok = false;
+  if (wanted) {
+    int32_t width = lv_display_get_horizontal_resolution(nullptr), height = lv_display_get_vertical_resolution(nullptr);
+    display::startArea((width - kSide) / 2, (height - kSide) / 2, kSide, kSide);
+    ok = album_art::decode(kSide, pushArtRow, nullptr);
+    display::endArea();
+  }
+  display::unlock();
+  if (wanted) Serial.printf("art: %s full screen in %u ms\n", ok ? "drew" : "couldn't draw", (unsigned)(millis() - started));
 }
 
 void setReach(Reach reach) {
@@ -154,6 +195,8 @@ void task(void*) {
           break;
       }
     }
+
+    drawFullScreenArt();
 
     // Sleep until the next poll, but wake for a button press and poll right after it.
     uint32_t elapsed = millis() - started;
@@ -266,6 +309,14 @@ void update() {
 }
 
 const State& state() { return current; }
+
+void showFullScreenArt(bool shown) {
+  xSemaphoreTake(lock, portMAX_DELAY);
+  if (shown) shared.full_art_seq++;
+  shared.full_art = shown;
+  xSemaphoreGive(lock);
+  if (shown) wake();
+}
 
 void togglePlayPause() { queue(Command::kTogglePlayPause); }
 void next() { queue(Command::kNext); }

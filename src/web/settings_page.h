@@ -128,6 +128,11 @@ code { display:inline-block; padding:2px 6px; border-radius:4px; background:var(
           <option value="1">For the 3D-printed case</option>
           <option value="0">Rotated 180&deg;, for a bare board</option>
         </select>
+        <label for="saver">Screensaver</label>
+        <select id="saver">
+          <option value="0">The character's clock</option>
+          <option value="1">Album art while music plays</option>
+        </select>
         <button>Save</button>
         <p class="msg" id="flip-msg"></p>
       </form>
@@ -228,6 +233,7 @@ async function main() {
     $("wifi-hint").textContent = `Connected to “${s.ssid}” as ${s.hostname} (${s.ip}).`;
     $("device").textContent = `Version ${s.version} · ${s.hostname} · ${s.ip}`;
     $("flip").value = s.flip_screen ? "1" : "0";
+    $("saver").value = s.art_screensaver ? "1" : "0";
     $("normal").hidden = false;
     for (const r of document.querySelectorAll("input[name=source]")) {
       r.checked = r.value === s.source;
@@ -288,7 +294,7 @@ async function main() {
   };
   $("flip-form").onsubmit = e => {
     e.preventDefault();
-    post("/api/settings", { flip_screen: $("flip").value }, "flip-msg", "Saved. The display is restarting.");
+    post("/api/settings", { flip_screen: $("flip").value, art_screensaver: $("saver").value }, "flip-msg", "Saved. The display is restarting.");
   };
   $("restart").onclick = () => post("/api/restart", {}, "flip-msg", "Restarting…");
 }

@@ -41,6 +41,11 @@ void begin();
 void update();
 const State& state();
 
+// The album art screensaver: call with true right after it has been drawn (again), and with false as
+// soon as another screen replaces it. Meanwhile the player task draws state().art's art at full
+// screen size, centered, straight onto the panel. Call on the UI task, inside LVGL.
+void showFullScreenArt(bool shown);
+
 void togglePlayPause();
 void next();
 void previous();

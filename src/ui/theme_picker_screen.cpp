@@ -8,7 +8,7 @@ namespace {
 
 // Inside the 12px side / 24px top and bottom safe zone, like the Figma "Player" frame.
 constexpr int32_t kMarginX = 16, kTop = 24, kWidth = 320 - 2 * kMarginX;
-constexpr int32_t kHeaderH = 32, kRowH = 44, kRowGap = 8, kSwatch = 28;
+constexpr int32_t kHeaderH = 32, kRowH = 32, kRowGap = 8, kSwatch = 22;  // four rows fit without scrolling
 
 void (*pick_cb)(size_t) = nullptr;
 void (*close_cb)() = nullptr;
@@ -48,7 +48,7 @@ void makeSwatch(lv_obj_t* parent, const Theme& t) {
   lv_obj_t* swatch = lv_obj_create(parent);
   lv_obj_remove_style_all(swatch);
   lv_obj_set_size(swatch, kSwatch, kSwatch);
-  lv_obj_align(swatch, LV_ALIGN_LEFT_MID, 8, 0);
+  lv_obj_align(swatch, LV_ALIGN_LEFT_MID, 6, 0);
   lv_obj_set_style_radius(swatch, 4, 0);
   lv_obj_set_style_bg_color(swatch, t.background, 0);
   lv_obj_set_style_bg_opa(swatch, LV_OPA_COVER, 0);
@@ -59,7 +59,7 @@ void makeSwatch(lv_obj_t* parent, const Theme& t) {
 
   lv_obj_t* bar = lv_obj_create(swatch);
   lv_obj_remove_style_all(bar);
-  lv_obj_set_size(bar, kSwatch, 6);
+  lv_obj_set_size(bar, kSwatch, 5);
   lv_obj_align(bar, LV_ALIGN_BOTTOM_MID, 0, 0);
   lv_obj_set_style_bg_color(bar, t.progress_fill, 0);
   lv_obj_set_style_bg_opa(bar, LV_OPA_COVER, 0);
@@ -93,7 +93,7 @@ lv_obj_t* createThemePicker(void (*on_pick)(size_t), void (*on_close)()) {
   lv_obj_align(version, LV_ALIGN_BOTTOM_RIGHT, -kMarginX, -6);
   lv_obj_add_event_cb(back, onBack, LV_EVENT_CLICKED, nullptr);
 
-  // Rows scroll if there are more themes than fit.
+  // Rows scroll if there are more themes than fit (more than four).
   lv_obj_t* list = lv_obj_create(scr);
   lv_obj_remove_style_all(list);
   lv_obj_set_pos(list, kMarginX, kTop + kHeaderH + kRowGap);
