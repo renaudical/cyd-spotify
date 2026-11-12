@@ -31,6 +31,7 @@ const Theme theme = {
     meta_letter_space,
     buildQuietScreensaver,
     true,   // art_screensaver
+    true,   // art_backdrop
     false,  // leds
 };
 

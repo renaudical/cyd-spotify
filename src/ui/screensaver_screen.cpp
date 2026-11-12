@@ -69,6 +69,10 @@ lv_obj_t* createScreensaver(void (*on_wake)()) {
 // each mote moves in screen coordinates and has a circle in each strip, so it slides behind the art
 // and out the other side, and the clipping keeps LVGL from ever repainting the art, since the player
 // draws it outside LVGL. The quiet screensaver has one strip, the whole screen.
+//
+// The backdrop (LED Lights) is the art blurred: a tiny image, a grid of averages, which LVGL stretches
+// to cover the screen with bilinear filtering, which is what makes it look blurred. Each strip shows
+// its part of it under the dust. Tiny means under 1 KB, where a full-screen picture would be 150 KB.
 namespace {
 
 constexpr int kMaxMotes = 24;
@@ -78,6 +82,12 @@ constexpr uint32_t kFrameMs = 50;
 constexpr float kMaxSpeed = 9;     // px/s
 constexpr float kWander = 6;       // px/s^2 of random push
 constexpr float kPulse = 0.3f;     // how much each mote grows and shrinks, as a fraction of its size
+
+// The backdrop grid: one cell per 20 screen px, a cell beyond each edge so the filtering doesn't fade
+// out at the screen's edges.
+constexpr int kCell = 20;
+constexpr int kGridW = 320 / kCell + 2, kGridH = 240 / kCell + 2;
+constexpr int kBackdropDim = 150;  // of 256: darker, so the art and the dust stand out
 
 struct Mote {
   float x, y, vx, vy;  // screen coordinates, px/s
@@ -95,6 +105,9 @@ struct Dust {
   Mote motes[kMaxMotes];
   lv_timer_t* timer;
   uint32_t last_ms;
+  lv_obj_t* backdrops[2];  // null without a backdrop
+  lv_image_dsc_t backdrop;
+  uint16_t* backdrop_px;  // kGridW x kGridH
 };
 
 float between(float lo, float hi) { return lo + (hi - lo) * lv_rand(0, 10000) / 10000.0f; }
@@ -169,12 +182,13 @@ void onUnloaded(lv_event_t* e) { lv_timer_pause(static_cast<Dust*>(lv_event_get_
 void onDeleteDust(lv_event_t* e) {
   Dust* d = static_cast<Dust*>(lv_event_get_user_data(e));
   lv_timer_delete(d->timer);
+  delete[] d->backdrop_px;
   delete d;
 }
 
 // White motes over `strip_count` strips: the two beside a full-height square in the middle, or the
 // whole screen. They only animate while the screen is showing.
-Dust* makeDust(lv_obj_t* scr, int strip_count, int mote_count) {
+Dust* makeDust(lv_obj_t* scr, int strip_count, int mote_count, bool backdrop) {
   Dust* d = new Dust();
   d->strip_count = strip_count;
   d->mote_count = mote_count;
@@ -190,6 +204,27 @@ Dust* makeDust(lv_obj_t* scr, int strip_count, int mote_count) {
     lv_obj_set_pos(strip, d->strip_x[s], 0);
     lv_obj_set_size(strip, strip_w, d->height);
     d->strips[s] = strip;
+    if (!backdrop) continue;
+    // Under the circles; each strip shows the screen-sized backdrop at its own place on the screen.
+    lv_obj_t* image = lv_image_create(strip);
+    lv_obj_remove_flag(image, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_pos(image, -d->strip_x[s] - kCell, -kCell);
+    lv_obj_set_size(image, kGridW * kCell, kGridH * kCell);
+    lv_image_set_inner_align(image, LV_IMAGE_ALIGN_STRETCH);
+    lv_image_set_antialias(image, true);
+    d->backdrops[s] = image;
+  }
+  if (backdrop) {
+    lv_image_dsc_t& b = d->backdrop;  // black until the first art
+    b.header.magic = LV_IMAGE_HEADER_MAGIC;
+    b.header.cf = LV_COLOR_FORMAT_RGB565;
+    b.header.w = kGridW;
+    b.header.h = kGridH;
+    b.header.stride = kGridW * 2;
+    d->backdrop_px = new uint16_t[kGridW * kGridH]();
+    b.data = reinterpret_cast<const uint8_t*>(d->backdrop_px);
+    b.data_size = kGridW * kGridH * 2;
+    for (int s = 0; s < strip_count; s++) lv_image_set_src(d->backdrops[s], &b);
   }
   for (int i = 0; i < mote_count; i++) {
     Mote& m = d->motes[i];
@@ -213,22 +248,65 @@ Dust* makeDust(lv_obj_t* scr, int strip_count, int mote_count) {
   return d;
 }
 
+// Averages the art into the backdrop grid. The grid covers the screen the way the art would if it
+// were zoomed to the screen's width (the sharp art is drawn at its height), so it reads as the same
+// picture, blurred and bigger. Each cell averages a wide patch, then the cells are smoothed together.
+void blurInto(Dust& d, const lv_image_dsc_t* art) {
+  const uint16_t* px = reinterpret_cast<const uint16_t*>(art->data);
+  int w = art->header.w, h = art->header.h;
+  int zoomed_h = d.width * h / w;  // the art's height when zoomed to the screen's width
+  int top = (zoomed_h - d.height) / 2;
+  int patch = std::max(2, w * kCell / d.width);  // half a cell's width either way, in art pixels
+  uint8_t rgb[kGridH][kGridW][3];
+  for (int gy = 0; gy < kGridH; gy++) {
+    for (int gx = 0; gx < kGridW; gx++) {
+      int u = ((gx - 1) * kCell + kCell / 2) * w / d.width;  // the cell's center, in art pixels
+      int v = ((gy - 1) * kCell + kCell / 2 + top) * w / d.width;
+      long r = 0, g = 0, b = 0, n = 0;
+      for (int y = v - patch; y <= v + patch; y += 2) {
+        for (int x = u - patch; x <= u + patch; x += 2) {
+          uint16_t p = px[std::min(std::max(y, 0), h - 1) * w + std::min(std::max(x, 0), w - 1)];
+          r += p >> 11, g += p >> 5 & 0x3F, b += p & 0x1F, n++;
+        }
+      }
+      rgb[gy][gx][0] = r * 255 / (31 * n), rgb[gy][gx][1] = g * 255 / (63 * n), rgb[gy][gx][2] = b * 255 / (31 * n);
+    }
+  }
+  for (int gy = 0; gy < kGridH; gy++) {
+    for (int gx = 0; gx < kGridW; gx++) {
+      int sum[3] = {}, n = 0;
+      for (int y = std::max(gy - 1, 0); y <= std::min(gy + 1, kGridH - 1); y++) {
+        for (int x = std::max(gx - 1, 0); x <= std::min(gx + 1, kGridW - 1); x++) {
+          for (int c = 0; c < 3; c++) sum[c] += rgb[y][x][c];
+          n++;
+        }
+      }
+      lv_color_t c = lv_color_make(sum[0] * kBackdropDim / (256 * n), sum[1] * kBackdropDim / (256 * n),
+                                   sum[2] * kBackdropDim / (256 * n));
+      d.backdrop_px[gy * kGridW + gx] = lv_color_to_u16(c);
+    }
+  }
+  lv_image_cache_drop(&d.backdrop);
+  for (int s = 0; s < d.strip_count; s++) lv_obj_invalidate(d.backdrops[s]);
+}
+
 }  // namespace
 
-lv_obj_t* createArtScreensaver(void (*on_wake)()) {
+lv_obj_t* createArtScreensaver(void (*on_wake)(), bool backdrop) {
   wake_cb = on_wake;
   lv_obj_t* scr = lv_obj_create(nullptr);
   lv_obj_remove_flag(scr, LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_set_style_bg_color(scr, lv_color_black(), 0);
-  lv_obj_set_user_data(scr, makeDust(scr, 2, kArtMotes));
+  lv_obj_set_user_data(scr, makeDust(scr, 2, kArtMotes, backdrop));
   lv_obj_add_event_cb(scr, onPressed, LV_EVENT_PRESSED, nullptr);
   return scr;
 }
 
-void addDust(lv_obj_t* screen) { makeDust(screen, 1, kQuietMotes); }
+void addDust(lv_obj_t* screen) { makeDust(screen, 1, kQuietMotes, false); }
 
-void setArtScreensaverColors(lv_obj_t* screen, const lv_color_t colors[4]) {
+void setArtScreensaverArt(lv_obj_t* screen, const lv_color_t colors[4], const lv_image_dsc_t* art) {
   Dust& d = *static_cast<Dust*>(lv_obj_get_user_data(screen));
+  if (d.backdrops[0]) blurInto(d, art);
   for (int i = 0; i < d.mote_count; i++) {
     for (int s = 0; s < d.strip_count; s++) lv_obj_set_style_bg_color(d.motes[i].circles[s], colors[i % 4], 0);
   }

@@ -75,18 +75,18 @@ void buildScreens() {
   now_playing = createNowPlaying(openPicker, sleep);
   screensaver = createScreensaver(wake);
   bool art = art_screensaver_setting || theme::active().art_screensaver;
-  art_screensaver = art ? createArtScreensaver(wake) : nullptr;
+  art_screensaver = art ? createArtScreensaver(wake, theme::active().art_backdrop) : nullptr;
   leds::setEnabled(theme::active().leds);
   led_colors_fresh = false;
 }
 
-// Colors the dust beside the art with the art's own colors.
+// Colors the dust beside the art with the art's own colors, and blurs the art behind it if the theme does.
 void paintArtColors(const lv_image_dsc_t* art) {
   palette::Rgb rgb[palette::kColors];
   palette::fromArt(reinterpret_cast<const uint16_t*>(art->data), art->header.w, art->header.h, rgb);
   lv_color_t colors[palette::kColors];
   for (int i = 0; i < palette::kColors; i++) colors[i] = lv_color_make(rgb[i].r, rgb[i].g, rgb[i].b);
-  setArtScreensaverColors(art_screensaver, colors);
+  setArtScreensaverArt(art_screensaver, colors, art);
 }
 
 bool playingArt(const player::State& s) { return s.art && s.status == player::Status::kPlaying; }
