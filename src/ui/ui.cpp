@@ -1,8 +1,11 @@
 #include "ui.h"
 
+#include <Arduino.h>
+#include <initializer_list>
 #include <stdio.h>
 
 #include "backlight.h"
+#include "leds/leds.h"
 #include "net/net.h"
 #include "palette.h"
 #include "player/player.h"
@@ -19,14 +22,17 @@ constexpr uint8_t kArtScreensaverBrightness = 128;  // album art looks muddy any
 constexpr uint32_t kDimFadeMs = 800;
 constexpr uint32_t kWakeFadeMs = 150;
 // Between tracks the art is gone for a second or two while the next one downloads; the old art stays
-// up meanwhile instead of flashing the clock.
+// up meanwhile instead of flashing the clock. The same grace applies to pausing, and to the LEDs.
 constexpr uint32_t kArtGapMs = 8000;
 
 lv_obj_t* now_playing = nullptr;
 lv_obj_t* screensaver = nullptr;
 lv_obj_t* art_screensaver = nullptr;  // only when it's the setting or the theme's; the player draws the art
 bool art_screensaver_setting = false;
-uint32_t art_missing_since = 0;  // millis() when the album art screensaver lost its art; 0 while it has it
+uint32_t art_missing_since = 0;  // millis() when the album art screensaver lost its art or music; 0 while it has them
+uint32_t quiet_since = 0;  // millis() when music stopped playing, for the LEDs; 0 while it plays
+uint32_t led_colors_version = 0;  // the State::version the LEDs last took their colors from
+bool led_colors_fresh = false;
 lv_obj_t* asleep = nullptr;  // blank, with the backlight off, until touched
 lv_obj_t* picker = nullptr;  // only exists while open
 lv_obj_t* setup = nullptr;  // only exists while the setup network is up
@@ -59,11 +65,19 @@ void sleep() {
   backlight::fadeTo(0, kDimFadeMs);
 }
 
+void logPool() {
+  lv_mem_monitor_t mem;
+  lv_mem_monitor(&mem);
+  Serial.printf("ui: LVGL pool %u of %u bytes used\n", (unsigned)(mem.total_size - mem.free_size), (unsigned)mem.total_size);
+}
+
 void buildScreens() {
   now_playing = createNowPlaying(openPicker, sleep);
   screensaver = createScreensaver(wake);
   bool art = art_screensaver_setting || theme::active().art_screensaver;
   art_screensaver = art ? createArtScreensaver(wake) : nullptr;
+  leds::setEnabled(theme::active().leds);
+  led_colors_fresh = false;
 }
 
 // Colors the dust beside the art with the art's own colors.
@@ -75,8 +89,28 @@ void paintArtColors(const lv_image_dsc_t* art) {
   setArtScreensaverColors(art_screensaver, colors);
 }
 
-// Album art while something plays (when that's the setting), the character's clock otherwise.
-lv_obj_t* screensaverFor(const player::State& s) { return art_screensaver && s.art ? art_screensaver : screensaver; }
+bool playingArt(const player::State& s) { return s.art && s.status == player::Status::kPlaying; }
+
+// Album art while something plays (when that's the setting), the theme's own screensaver otherwise.
+lv_obj_t* screensaverFor(const player::State& s) {
+  return art_screensaver && playingArt(s) ? art_screensaver : screensaver;
+}
+
+// The LED Lights theme's strand: the album's colors while music plays, white twinkling otherwise.
+void feedLeds(const player::State& s) {
+  if (!theme::active().leds) return;
+  bool playing = s.link == player::Link::kOk && s.status == player::Status::kPlaying;
+  if (playing) quiet_since = 0;
+  else if (!quiet_since) quiet_since = millis() | 1;
+  leds::setPlaying(playing || millis() - quiet_since < kArtGapMs);
+  if (led_colors_fresh && s.version == led_colors_version) return;
+  led_colors_fresh = true;
+  led_colors_version = s.version;
+  if (!s.art) return leds::setColors(nullptr);
+  palette::Rgb rgb[palette::kColors];
+  palette::fromArt(reinterpret_cast<const uint16_t*>(s.art->data), s.art->header.w, s.art->header.h, rgb);
+  leds::setColors(rgb);
+}
 
 void showScreensaver(lv_obj_t* scr) {
   bool art = scr == art_screensaver;
@@ -97,16 +131,19 @@ void closePicker() {
   picker = nullptr;
 }
 
-// Screens take their colors when they're built, so a new theme means building them again.
+// Screens take their colors when they're built, so a new theme means building them again. The old
+// ones go first: two sets of dust don't fit in LVGL's pool at once. The picker is showing, so it goes
+// last.
 void pickTheme(size_t index) {
-  lv_obj_t* old_screens[] = {now_playing, screensaver, art_screensaver, picker};
+  for (lv_obj_t* old : {now_playing, screensaver, art_screensaver}) {
+    if (old) lv_obj_delete(old);
+  }
   theme::select(index);
   buildScreens();
   lv_screen_load(now_playing);
-  for (lv_obj_t* old : old_screens) {
-    if (old) lv_obj_delete(old);
-  }
+  lv_obj_delete(picker);
   picker = nullptr;
+  logPool();
 }
 
 void openPicker() {
@@ -182,6 +219,7 @@ void hideSetup() {
 }
 
 void checkIdle(lv_timer_t*) {
+  feedLeds(player::state());
   if (updater::installing()) return showUpdating();
   if (updating) return hideUpdating();  // the install failed; the screensaver follows when idle
   bool needs_setup = net::inSetup() && net::wifi() != net::Wifi::kConnected;
@@ -193,8 +231,8 @@ void checkIdle(lv_timer_t*) {
   // Music starting or stopping swaps the clock and the album art.
   const player::State& s = player::state();
   if (active == art_screensaver) {
-    if (s.art && art_missing_since) paintArtColors(s.art);  // the player draws the new art itself
-    if (s.art) art_missing_since = 0;
+    if (playingArt(s) && art_missing_since) paintArtColors(s.art);  // the player draws the new art itself
+    if (playingArt(s)) art_missing_since = 0;
     else if (!art_missing_since) art_missing_since = millis() | 1;
     else if (millis() - art_missing_since > kArtGapMs) return showScreensaver(screensaver);
   } else if (active == screensaver && screensaverFor(s) == art_screensaver) {
@@ -212,6 +250,7 @@ void begin() {
   buildScreens();
   lv_screen_load(now_playing);
   lv_timer_create(checkIdle, 250, nullptr);
+  logPool();
 }
 
 }  // namespace ui

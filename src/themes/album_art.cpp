@@ -1,18 +1,14 @@
 #include "album_art.h"
 
+#include "ui/ui.h"
+
 namespace album_art_theme {
-namespace {
 
-lv_obj_t* buildScreensaver(lv_obj_t* screen) {
+lv_obj_t* buildQuietScreensaver(lv_obj_t* screen) {
   lv_obj_set_style_bg_color(screen, lv_color_hex(black), 0);
-  lv_obj_t* time = lv_label_create(screen);
-  lv_obj_center(time);
-  lv_obj_set_style_text_font(time, font_clock, 0);
-  lv_obj_set_style_text_color(time, lv_color_hex(white), 0);
-  return time;
+  ui::addDust(screen);
+  return nullptr;
 }
-
-}  // namespace
 
 const Theme theme = {
     "album_art",
@@ -33,8 +29,9 @@ const Theme theme = {
     font_title,
     font_meta,
     meta_letter_space,
-    buildScreensaver,
-    true,  // art_screensaver
+    buildQuietScreensaver,
+    true,   // art_screensaver
+    false,  // leds
 };
 
 }  // namespace album_art_theme

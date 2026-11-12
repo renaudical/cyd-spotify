@@ -47,12 +47,14 @@ lv_obj_t* createScreensaver(void (*on_wake)()) {
   lv_obj_t* scr = lv_obj_create(nullptr);
   lv_obj_remove_flag(scr, LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_t* time_label = theme::active().build_screensaver(scr);
-  lv_label_set_text(time_label, "");
-  updateTime(time_label);
+  if (time_label) {  // some themes have no clock
+    lv_label_set_text(time_label, "");
+    updateTime(time_label);
 
-  // The screen outlives many screensaver visits, so the clock ticks whether or not it's showing.
-  lv_timer_t* timer = lv_timer_create(onTick, 1000, time_label);
-  lv_obj_add_event_cb(scr, onDelete, LV_EVENT_DELETE, timer);
+    // The screen outlives many screensaver visits, so the clock ticks whether or not it's showing.
+    lv_timer_t* timer = lv_timer_create(onTick, 1000, time_label);
+    lv_obj_add_event_cb(scr, onDelete, LV_EVENT_DELETE, timer);
+  }
 
   // Every touch must land on the screen itself, whatever the character art is made of.
   for (uint32_t i = 0; i < lv_obj_get_child_count(scr); i++) {
@@ -62,14 +64,16 @@ lv_obj_t* createScreensaver(void (*on_wake)()) {
   return scr;
 }
 
-// The album art screensaver: black, with the art drawn full height in the middle by the player, and
-// dust in the art's colors drifting in the strips either side. Each mote moves in screen coordinates
-// and has a circle in each strip, so it slides behind the art and out the other side. The strips
-// clip their circles, which also keeps LVGL from ever repainting the art, since the player draws it
-// outside LVGL.
+// Dust: circles drifting and pulsing across a screen, in one or more strips that clip them. The
+// album art screensaver has a strip either side of the art, which the player draws in the middle:
+// each mote moves in screen coordinates and has a circle in each strip, so it slides behind the art
+// and out the other side, and the clipping keeps LVGL from ever repainting the art, since the player
+// draws it outside LVGL. The quiet screensaver has one strip, the whole screen.
 namespace {
 
-constexpr int kMotes = 18;
+constexpr int kMaxMotes = 24;
+constexpr int kArtMotes = 18;    // beside the album art
+constexpr int kQuietMotes = 24;  // across the whole screen
 constexpr uint32_t kFrameMs = 50;
 constexpr float kMaxSpeed = 9;     // px/s
 constexpr float kWander = 6;       // px/s^2 of random push
@@ -83,10 +87,12 @@ struct Mote {
 };
 
 struct Dust {
+  int strip_count;
   lv_obj_t* strips[2];
   int32_t strip_x[2], strip_w;
   int32_t width, height;
-  Mote motes[kMotes];
+  int mote_count;
+  Mote motes[kMaxMotes];
   lv_timer_t* timer;
   uint32_t last_ms;
 };
@@ -113,14 +119,14 @@ void spawn(Dust& d, Mote& m, bool anywhere) {
   m.phase = between(0, 6.283f);
   m.pulse_rate = between(0.5f, 1.6f);
   lv_opa_t opa = lv_rand(LV_OPA_30, LV_OPA_80);
-  for (lv_obj_t* c : m.circles) lv_obj_set_style_bg_opa(c, opa, 0);
+  for (int s = 0; s < d.strip_count; s++) lv_obj_set_style_bg_opa(m.circles[s], opa, 0);
 }
 
 void place(Dust& d, Mote& m) {
   float r = m.radius * (1 + kPulse * sinf(m.phase));
   int32_t size = std::max(2L, lroundf(2 * r));
   int32_t left = lroundf(m.x - r), top = lroundf(m.y - r);
-  for (int s = 0; s < 2; s++) {
+  for (int s = 0; s < d.strip_count; s++) {
     lv_obj_t* c = m.circles[s];
     int32_t x0 = d.strip_x[s], x1 = x0 + d.strip_w;
     if (left + size <= x0 || left >= x1) {  // nowhere near this strip
@@ -138,7 +144,8 @@ void onFrame(lv_timer_t* timer) {
   uint32_t now = lv_tick_get();
   float dt = std::min<uint32_t>(now - d.last_ms, 200) / 1000.0f;
   d.last_ms = now;
-  for (Mote& m : d.motes) {
+  for (int i = 0; i < d.mote_count; i++) {
+    Mote& m = d.motes[i];
     m.vx += between(-kWander, kWander) * dt;
     m.vy += between(-kWander, kWander) * dt;
     float speed = sqrtf(m.vx * m.vx + m.vy * m.vy);
@@ -165,19 +172,16 @@ void onDeleteDust(lv_event_t* e) {
   delete d;
 }
 
-}  // namespace
-
-lv_obj_t* createArtScreensaver(void (*on_wake)()) {
-  wake_cb = on_wake;
-  lv_obj_t* scr = lv_obj_create(nullptr);
-  lv_obj_remove_flag(scr, LV_OBJ_FLAG_SCROLLABLE);
-  lv_obj_set_style_bg_color(scr, lv_color_black(), 0);
-
+// White motes over `strip_count` strips: the two beside a full-height square in the middle, or the
+// whole screen. They only animate while the screen is showing.
+Dust* makeDust(lv_obj_t* scr, int strip_count, int mote_count) {
   Dust* d = new Dust();
+  d->strip_count = strip_count;
+  d->mote_count = mote_count;
   d->width = lv_display_get_horizontal_resolution(nullptr);
   d->height = lv_display_get_vertical_resolution(nullptr);
-  int32_t strip_w = d->strip_w = (d->width - d->height) / 2;  // the art is a full-height square
-  for (int s = 0; s < 2; s++) {
+  int32_t strip_w = d->strip_w = strip_count == 2 ? (d->width - d->height) / 2 : d->width;
+  for (int s = 0; s < strip_count; s++) {
     lv_obj_t* strip = lv_obj_create(scr);
     lv_obj_remove_style_all(strip);
     lv_obj_remove_flag(strip, LV_OBJ_FLAG_SCROLLABLE);
@@ -187,9 +191,9 @@ lv_obj_t* createArtScreensaver(void (*on_wake)()) {
     lv_obj_set_size(strip, strip_w, d->height);
     d->strips[s] = strip;
   }
-  for (int i = 0; i < kMotes; i++) {
+  for (int i = 0; i < mote_count; i++) {
     Mote& m = d->motes[i];
-    for (int s = 0; s < 2; s++) {
+    for (int s = 0; s < strip_count; s++) {
       lv_obj_t* c = lv_obj_create(d->strips[s]);
       lv_obj_remove_style_all(c);
       lv_obj_remove_flag(c, LV_OBJ_FLAG_CLICKABLE);
@@ -200,21 +204,33 @@ lv_obj_t* createArtScreensaver(void (*on_wake)()) {
     spawn(*d, m, true);
     place(*d, m);
   }
-  lv_obj_set_user_data(scr, d);
 
   d->timer = lv_timer_create(onFrame, kFrameMs, d);
   lv_timer_pause(d->timer);
   lv_obj_add_event_cb(scr, onLoaded, LV_EVENT_SCREEN_LOADED, d);
   lv_obj_add_event_cb(scr, onUnloaded, LV_EVENT_SCREEN_UNLOADED, d);
   lv_obj_add_event_cb(scr, onDeleteDust, LV_EVENT_DELETE, d);
+  return d;
+}
+
+}  // namespace
+
+lv_obj_t* createArtScreensaver(void (*on_wake)()) {
+  wake_cb = on_wake;
+  lv_obj_t* scr = lv_obj_create(nullptr);
+  lv_obj_remove_flag(scr, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_set_style_bg_color(scr, lv_color_black(), 0);
+  lv_obj_set_user_data(scr, makeDust(scr, 2, kArtMotes));
   lv_obj_add_event_cb(scr, onPressed, LV_EVENT_PRESSED, nullptr);
   return scr;
 }
 
+void addDust(lv_obj_t* screen) { makeDust(screen, 1, kQuietMotes); }
+
 void setArtScreensaverColors(lv_obj_t* screen, const lv_color_t colors[4]) {
   Dust& d = *static_cast<Dust*>(lv_obj_get_user_data(screen));
-  for (int i = 0; i < kMotes; i++) {
-    for (lv_obj_t* c : d.motes[i].circles) lv_obj_set_style_bg_color(c, colors[i % 4], 0);
+  for (int i = 0; i < d.mote_count; i++) {
+    for (int s = 0; s < d.strip_count; s++) lv_obj_set_style_bg_color(d.motes[i].circles[s], colors[i % 4], 0);
   }
 }
 

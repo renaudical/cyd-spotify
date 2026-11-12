@@ -18,6 +18,9 @@ lv_obj_t* createScreensaver(void (*on_wake)());
 lv_obj_t* createArtScreensaver(void (*on_wake)());
 // Colors the dust; four colors from the art.
 void setArtScreensaverColors(lv_obj_t* screen, const lv_color_t colors[4]);
+// White dust drifting across the whole of a screen, for a theme's build_screensaver (it animates only
+// while the screen shows).
+void addDust(lv_obj_t* screen);
 // Lists the themes. Both callbacks run outside the screen's event handlers, so they may delete it.
 lv_obj_t* createThemePicker(void (*on_pick)(size_t index), void (*on_close)());
 

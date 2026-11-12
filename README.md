@@ -49,7 +49,7 @@ Choose WiiM on the settings page. The display finds the streamer on your network
 
 ## Themes and updates
 
-Hold the album art for 2 seconds to pick a theme. The Album Art theme has no character: a black player screen, and the album art as its screensaver, with dust in the art's colors drifting beside it. When a new version comes out, the display installs it on its own while it's showing the clock, and restarts. New themes appear in the picker; your choice never changes by itself.
+Hold the album art for 2 seconds to pick a theme. The Album Art theme has no character: a black player screen, and the album art as its screensaver, with dust in the art's colors drifting beside it; when nothing plays, white dust drifts across the screen instead. The LED Lights theme is the same, and also lights an LED strand inside the Brickman figure (data on GPIO 27, the CN1 connector): the album's colors drift and breathe through it while music plays, and it twinkles softly in white otherwise. No other theme touches that pin. When a new version comes out, the display installs it on its own while it's showing the clock, and restarts. New themes appear in the picker; your choice never changes by itself.
 
 ## Building it yourself
 

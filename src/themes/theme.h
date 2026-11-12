@@ -38,6 +38,10 @@ struct Theme {
   // Always use the album art screensaver while music plays, whatever settings::artScreensaver() says;
   // build_screensaver is then only for when nothing plays.
   bool art_screensaver;
+
+  // Drives the LED strand in the Brickman figure (src/leds/); off in every theme but LED Lights, so
+  // boards without one never touch its pin.
+  bool leds;
 };
 
 namespace theme {

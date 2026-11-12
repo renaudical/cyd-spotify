@@ -8,7 +8,7 @@ namespace {
 
 // Inside the 12px side / 24px top and bottom safe zone, like the Figma "Player" frame.
 constexpr int32_t kMarginX = 16, kTop = 24, kWidth = 320 - 2 * kMarginX;
-constexpr int32_t kHeaderH = 32, kRowH = 32, kRowGap = 8, kSwatch = 22;  // four rows fit without scrolling
+constexpr int32_t kHeaderH = 32, kRowH = 27, kRowGap = 4, kSwatch = 21;  // five rows fit without scrolling
 
 void (*pick_cb)(size_t) = nullptr;
 void (*close_cb)() = nullptr;
@@ -93,7 +93,7 @@ lv_obj_t* createThemePicker(void (*on_pick)(size_t), void (*on_close)()) {
   lv_obj_align(version, LV_ALIGN_BOTTOM_RIGHT, -kMarginX, -6);
   lv_obj_add_event_cb(back, onBack, LV_EVENT_CLICKED, nullptr);
 
-  // Rows scroll if there are more themes than fit (more than four).
+  // Rows scroll if there are more themes than fit (more than five).
   lv_obj_t* list = lv_obj_create(scr);
   lv_obj_remove_style_all(list);
   lv_obj_set_pos(list, kMarginX, kTop + kHeaderH + kRowGap);

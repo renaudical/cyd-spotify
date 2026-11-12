@@ -2,6 +2,7 @@
 
 #include "album_art.h"
 #include "doom.h"
+#include "led_lights.h"
 #include "santa.h"
 #include "theme.h"
 
@@ -10,7 +11,8 @@ namespace {
 
 // Every character, in picker order. A new theme needs its own file and a line here. Spider isn't
 // ready yet, so it's left out; anyone who had picked it gets the first theme.
-const Theme* const kThemes[] = {&santa::theme, &doom::theme, &album_art_theme::theme};
+const Theme* const kThemes[] = {&santa::theme, &doom::theme, &album_art_theme::theme,
+                                &led_lights_theme::theme};
 constexpr size_t kCount = sizeof(kThemes) / sizeof(kThemes[0]);
 
 // Saved by name, so reordering the list doesn't change anyone's choice.
