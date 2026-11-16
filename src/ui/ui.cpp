@@ -108,8 +108,8 @@ void feedLeds(const player::State& s) {
   led_colors_version = s.version;
   if (!s.art) return leds::setColors(nullptr);
   palette::Rgb rgb[palette::kColors];
-  palette::fromArt(reinterpret_cast<const uint16_t*>(s.art->data), s.art->header.w, s.art->header.h, rgb);
-  leds::setColors(rgb);
+  bool vivid = palette::vividFromArt(reinterpret_cast<const uint16_t*>(s.art->data), s.art->header.w, s.art->header.h, rgb);
+  leds::setColors(vivid ? rgb : nullptr);  // black-and-white art gets the calm blue and purple
 }
 
 void showScreensaver(lv_obj_t* scr) {

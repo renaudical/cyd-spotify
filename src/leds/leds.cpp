@@ -20,6 +20,12 @@ constexpr uint32_t kColorDrift = 9;  // around the loop of album colors
 constexpr uint32_t kBreath = 34;     // each LED's brightness while music plays
 constexpr uint32_t kTwinkle = 68;    // each white LED's sparkle
 
+// While nothing plays, a glow of a random color sweeps along the strand over the twinkling, head to toe
+// as threaded; each sweep picks a new color, well away from the last.
+constexpr uint32_t kSweepMs = 7000;  // from the first LED to past the last
+constexpr int kSweepHalfWidth = 6;   // LEDs either side of its middle
+constexpr uint8_t kSweepBrightness = 200;
+
 constexpr palette::Rgb kNoArt[palette::kColors] = {{40, 60, 255}, {120, 40, 255}, {60, 120, 255}, {160, 60, 220}};
 
 CRGB pixels[kCount];
@@ -33,11 +39,11 @@ bool playing = false;
 CRGB target[palette::kColors];
 uint32_t target_serial = 0;  // bumped with each new set of colors
 
-// A little more saturated, and full brightness, so the figure glows in color rather than pastel.
-// Near-grays stay as they are: boosting them would invent a hue.
+// Well saturated, and full brightness, so the figure glows in color rather than pastel. Near-grays stay
+// as they are: boosting them would invent a hue.
 CRGB vivid(const palette::Rgb& c) {
   CHSV hsv = rgb2hsv_approximate(CRGB(c.r, c.g, c.b));
-  if (hsv.s > 40) hsv.s = qadd8(hsv.s, 60);
+  if (hsv.s > 40) hsv.s = max<uint8_t>(qadd8(hsv.s, 60), 220);
   hsv.v = 255;
   return hsv;
 }
@@ -70,6 +76,8 @@ void run(void*) {
   uint32_t serial = 0, crossfade_start = 0;
   uint8_t music = 0;  // 0 = white twinkling, 255 = album colors
   uint8_t on = 0;     // fades in and out
+  uint8_t sweep_hue = random8();
+  uint32_t sweep_start = millis();
   TickType_t wake = xTaskGetTickCount();
   for (;;) {
     uint32_t t = millis();
@@ -87,6 +95,14 @@ void run(void*) {
     for (int k = 0; k < palette::kColors; k++) shown[k] = blend(from[k], to[k], progress);
     music = want_music ? qadd8(music, kFadeStep) : qsub8(music, kFadeStep);
     on = want_on ? qadd8(on, kFadeStep) : qsub8(on, kFadeStep);
+    if (t - sweep_start >= kSweepMs) {
+      sweep_start = t;
+      sweep_hue += random8(64, 192);
+    }
+    // The sweep's middle, in 1/256ths of an LED: starts just before the first, ends just past the last.
+    int32_t span = (kCount + 2 * kSweepHalfWidth) * 256;
+    int32_t middle = int32_t(uint64_t(t - sweep_start) * span / kSweepMs) - kSweepHalfWidth * 256;
+    CRGB sweep_color = CHSV(sweep_hue, 230, kSweepBrightness);
 
     for (int i = 0; i < kCount; i++) {
       uint16_t pos = noise(i * 3, t, kColorDrift) * 256;  // once round the loop of colors
@@ -94,7 +110,10 @@ void run(void*) {
       CRGB album = onLoop(shown, pos).nscale8_video(level);
       // Squaring the noise keeps each LED mostly low, with brief brighter glints.
       uint8_t white = kWhiteFloor + scale8(white_peak[i] - kWhiteFloor, dim8_raw(noise(i * 3 + 2, t, kTwinkle)));
-      pixels[i] = blend(CRGB(white, white, white), album, ease8InOutCubic(music));
+      int32_t off = abs(i * 256 - middle);
+      uint8_t glow = off >= kSweepHalfWidth * 256 ? 0 : ease8InOutCubic(255 - off / kSweepHalfWidth);
+      CRGB quiet = blend(CRGB(white, white, white), sweep_color, glow);
+      pixels[i] = blend(quiet, album, ease8InOutCubic(music));
     }
     FastLED.setBrightness(ease8InOutCubic(on));
     FastLED.show();

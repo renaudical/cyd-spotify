@@ -16,4 +16,8 @@ struct Rgb {
 // brightened enough to show up on black, since that's where they're used.
 void fromArt(const uint16_t* pixels, int width, int height, Rgb out[kColors]);
 
+// Like fromArt(), but only from the strongly colored parts, skipping whites, grays and blacks: for the
+// LEDs, so a mostly white cover still lights up in its colors. False if the art has almost no color.
+bool vividFromArt(const uint16_t* pixels, int width, int height, Rgb out[kColors]);
+
 }  // namespace palette

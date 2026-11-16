@@ -104,5 +104,5 @@ void updateLeds() {                       // call every loop()
 ## Status (2026-11-12)
 
 - Step 1 is done: this strand's colour order is **BGR**.
-- Step 2 is built as the **LED Lights** theme (`src/leds/leds.cpp`): the LEDs only run with that theme, on their own task rather than `loop()`, so the full-screen album art draw (~220 ms with the display locked) can't freeze them. When music isn't playing they twinkle softly in white instead of dimming the album colors.
+- Step 2 is built as the **LED Lights** theme (`src/leds/leds.cpp`): the LEDs only run with that theme, on their own task rather than `loop()`, so the full-screen album art draw (~220 ms with the display locked) can't freeze them. When music isn't playing they twinkle softly in white instead of dimming the album colors, with a glow of a random color sweeping along the strand; the music colors skip the white and gray parts of the cover.
 - The strand was cut to 50 LEDs and is threaded as one piece, looped in and out of each part (head, torso, arms, hips, left leg, right leg last), so there are no group joints to solder. The LED map comes from a walk test after threading.

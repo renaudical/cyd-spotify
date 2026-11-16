@@ -10,11 +10,12 @@ namespace leds {
 // Fades the LEDs in or out. Their pin is left alone until the first time they're switched on.
 void setEnabled(bool enabled);
 
-// Whether music is playing: album colors if so, white twinkling if not. The change crossfades.
+// Whether music is playing: album colors if so, white twinkling with a colored glow sweeping through if
+// not. The change crossfades.
 void setPlaying(bool playing);
 
-// The album's colors (from palette::fromArt()), or nullptr for a calm blue and purple when there's no
-// art. Crossfades over about 2 s.
+// The album's colors (from palette::vividFromArt()), or nullptr for a calm blue and purple when there's
+// no art, or no color in it. Crossfades over about 2 s.
 void setColors(const palette::Rgb* colors);
 
 }  // namespace leds
